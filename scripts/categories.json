@@ -1,0 +1,41 @@
+{
+  "_note": "Design choices, not facts. Labels are Overture basic_category values (taxonomy 2026-10-21.0). A place matches a label if it is its basic_category or appears in taxonomy.hierarchy.",
+  "products": {
+    "cold_brew": {
+      "name": "Cold brew subscription",
+      "orderValue": 24, "margin": 0.45,
+      "demand": {"corporate_or_business_office": 1.0, "b2b_office_and_professional_service": 0.6, "college_university": 0.7, "campus": 0.5, "fitness_studio": 0.4},
+      "competitors": {"coffee_shop": 1.0, "cafe": 0.7}
+    },
+    "supplements": {
+      "name": "Protein & supplements",
+      "orderValue": 45, "margin": 0.35,
+      "demand": {"gym": 1.0, "fitness_studio": 1.0, "sport_or_fitness_facility": 0.8, "smoothie_juice_bar": 0.6, "sport_court": 0.4, "swimming_pool": 0.4, "park": 0.3},
+      "competitors": {"sporting_goods_store": 0.8, "pharmacy_and_drug_store": 0.4}
+    },
+    "pet_food": {
+      "name": "Premium pet food",
+      "orderValue": 60, "margin": 0.30,
+      "demand": {"animal_or_pet_service": 1.0, "dog_park": 1.0, "park": 0.4},
+      "competitors": {"animal_and_pet_store": 1.0}
+    },
+    "kids_gear": {
+      "name": "Kids & baby gear",
+      "orderValue": 55, "margin": 0.35,
+      "demand": {"preschool": 1.0, "kindergarten": 1.0, "elementary_school": 0.8, "playground": 0.8, "pediatric_clinic": 0.7},
+      "competitors": {"toys_and_games_store": 1.0, "department_store": 0.4}
+    },
+    "late_night": {
+      "name": "Late-night snack delivery",
+      "orderValue": 22, "margin": 0.40,
+      "demand": {"bar": 1.0, "nightlife_venue": 1.0, "dance_club": 0.8, "music_venue": 0.7, "lounge": 0.6, "college_university": 0.4},
+      "competitors": {"fast_food_restaurant": 0.6, "convenience_store": 0.6, "food_truck_stand": 0.4}
+    },
+    "skincare": {
+      "name": "Clean skincare",
+      "orderValue": 38, "margin": 0.55,
+      "demand": {"personal_or_beauty_service": 1.0, "wellness_service": 0.8, "fitness_studio": 0.5, "fashion_and_apparel_store": 0.5, "shopping_mall": 0.4},
+      "competitors": {"personal_care_and_beauty_store": 1.0, "pharmacy_and_drug_store": 0.5}
+    }
+  }
+}
