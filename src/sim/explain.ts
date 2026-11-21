@@ -43,8 +43,11 @@ export function explain(world: World, zoneIndex: number): Explanation {
   if (totalComp === 0) competitionLine = `Competition: no ${labelName(mainComp.label)} nearby`;
   else {
     const what = z.compParts.filter((p) => p.count > 0).map((p) => countPhrase(p.label, p.count)).join(", ");
-    const tone = compRank < 0.33 ? "only " : compRank > 0.67 ? "crowded: " : "";
-    competitionLine = `Competition: ${tone}${what}`;
+    // Ranked per person, so "2 toy stores" can be a lot for a small neighborhood.
+    competitionLine =
+      compRank < 0.33 ? `Competition: only ${what}`
+      : compRank > 0.67 ? `Competition: ${what} (more per person than most of SF)`
+      : `Competition: ${what}`;
   }
 
   const cheaper = Math.round((1 - z.pricePct) * 100);

@@ -1,0 +1,97 @@
+:root {
+  --surface: #fcfcfb;
+  --panel: #ffffff;
+  --border: #e4e3df;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --muted: #6b6a66;
+  --pos: #1a7f45;
+  --neg: #b3261e;
+  --accent: #2a78d6;
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+h1, h2, h3 { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.center { display: grid; place-items: center; height: 100%; color: var(--text-2); }
+
+.app { display: flex; flex-direction: column; height: 100%; }
+
+.topbar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--panel);
+}
+.topbar h1 { font-size: 18px; letter-spacing: -0.01em; }
+.product-pick { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-2); }
+.product-pick select {
+  font: inherit; color: var(--text); padding: 6px 8px; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--panel);
+}
+.preview-note { margin-left: auto; }
+
+.stage { position: relative; flex: 1; min-height: 0; }
+.map-wrap, .map { position: absolute; inset: 0; }
+
+.tooltip {
+  position: absolute; pointer-events: none; transform: translate(12px, 12px);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: var(--shadow); padding: 6px 10px; font-size: 13px;
+  display: flex; flex-direction: column; gap: 2px; white-space: nowrap;
+}
+
+.legend {
+  position: absolute; left: 16px; bottom: 24px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow);
+  padding: 10px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 6px;
+}
+.legend-title { font-weight: 600; }
+.legend ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.legend li { display: grid; grid-template-columns: 14px 52px auto; gap: 8px; align-items: center; }
+.swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+
+.panel {
+  position: absolute; z-index: 3; top: 12px; right: 56px; bottom: 44px; /* leaves the map credits visible */ width: 360px; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 16px; display: flex; flex-direction: column; gap: 12px;
+  font-size: 14px; line-height: 1.4;
+}
+.panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.panel-head h2 { font-size: 20px; }
+.panel-head p { margin: 4px 0 0; font-size: 13px; }
+.panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-2); }
+.icon-btn {
+  font-size: 22px; line-height: 1; width: 32px; height: 32px; border: none; border-radius: 6px;
+  background: transparent; color: var(--text-2); cursor: pointer; flex: none;
+}
+.icon-btn:hover { background: #f0efec; }
+
+.score-row { display: flex; align-items: center; gap: 10px; }
+.score-row .swatch { width: 10px; height: 40px; }
+.score-num { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.why { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
+.levels { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.levels th, .levels td { padding: 6px 4px; text-align: right; border-bottom: 1px solid var(--border); }
+.levels th:first-child { text-align: left; }
+.levels thead th { font-size: 12px; font-weight: 500; color: var(--text-2); }
+.levels tr.best th::after { content: " ★"; color: var(--accent); }
+.pos { color: var(--pos); }
+.neg { color: var(--neg); }
+.panel p.small { margin: 0; }
+
+.credit { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+.examples { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+@media (max-width: 720px) {
+  .preview-note { display: none; }
+  .panel { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 55%; border-radius: 12px 12px 0 0; }
+  .legend { bottom: 16px; left: 12px; font-size: 12px; }
+}

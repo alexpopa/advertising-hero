@@ -4,7 +4,7 @@
 
 Ad Empire SF is a small tycoon game that runs in the browser. You pick a product, start with $3,000, and spend 90 game days deciding where your next ad dollar is worth the most. A gym-heavy corner of SoMa is great for protein powder and useless for baby gear. Downtown is packed with people, but its ads are priced to match. The quiet, cheap neighborhood with exactly your audience is the one worth finding.
 
-> **Status: in development.** The map data and the game engine are done. The map and screens are being built next. See [Roadmap](#roadmap).
+> **Status: in development.** The map data, the game engine and the map are done. Buying ads and the day-by-day game are next. See [Roadmap](#roadmap).
 
 ## How it plays
 
@@ -49,12 +49,13 @@ The result is **76 neighborhoods** in about 220 KB of data, small enough to ship
 - **No accounts or leaderboards.** Progress is saved in your browser, so there's no server to run.
 - **The data is precomputed,** not queried live: a one-time script turns millions of map records into a few small files.
 
-## Run the engine
+## Run it
 
 Needs Node.js.
 
 ```bash
 npm install
+npm run dev       # the game at http://localhost:5173
 npm test          # 51 tests for the game rules
 npm run report    # how a few simple strategies do over 90 days, per product
 ```
@@ -83,7 +84,7 @@ python scripts/build_zones.py    # writes public/data/
 - [x] Data pipeline and neighborhoods
 - [x] Simulation engine with tests
 - [ ] Balance script (bots play many runs to tune the economy)
-- [ ] Map with fit colors and a "why this neighborhood" panel
+- [x] Map with fit colors and a "why this neighborhood" panel
 - [ ] Game loop: ad buying, campaigns, Easy-mode recommendations
 - [ ] Start and end screens (with Easy / Hard), hints, events
 - [ ] Polish and deploy
