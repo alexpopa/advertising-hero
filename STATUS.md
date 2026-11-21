@@ -13,10 +13,10 @@ Repo: private GitHub repo `alexpopa/ad-empire-sf` (push over SSH). `data/raw/` a
 
 Build order from DESIGN.md section 9:
 1. **Data: done.** `scripts/extract.py` downloads the SF slice (~80 s), `scripts/inspect_sf.py` reports on it, `scripts/build_zones.py` writes `public/data/` (76 zones, 220 KB). Decisions in DESIGN.md section 10.
-2. **Next:** simulation module (`src/sim/`) + Vitest tests + balance script, before any UI.
+2. **Next:** simulation module (`src/sim/`) + Vitest tests, before any UI. Balance script later, once there's enough logic to balance.
 3. Map with score colors and "why" panel.
 4. Game loop.
-5. Start/end screens, hints, events.
+5. Start/end screens (incl. Easy/Hard choice), hints, events.
 6. Polish, deploy, README.
 
 ## Rerun the data pipeline (macOS)
@@ -30,6 +30,7 @@ python scripts/build_zones.py    # writes public/data/
 ```
 
 ## Trade-offs and cuts logged so far (for the README)
+- 2026-11-21: recommendations moved behind an **Easy** mode; **Hard** is the default and shows none. Always-on recommendations would just hand players the answer.
 - Zones are H3 hexes named after the nearest Overture neighborhood point and merged by name, because Overture outlines only ~16 SF neighborhoods. Names are approximate.
 - Treasure Island / Yerba Buena Island dropped: no Overture neighborhood label within 1.5 km.
 - `campus` and `kindergarten` labels removed: 0 SF places.

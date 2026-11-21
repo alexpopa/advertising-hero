@@ -16,7 +16,7 @@
 - 6 product types to pick from (section 5).
 - Ads bought per neighborhood at 4 levels (Off / Low / Medium / High).
 - Daily income, overhead, a bit of randomness, occasional events.
-- Top-5 recommendations with plain-language reasons at all times.
+- Two difficulty modes, chosen at the start, **Hard by default**. Easy adds top-5 recommendations (where to place ads, with plain-language reasons). Hard shows no recommendations; the player reads the map and works it out.
 - A 90-day run with an end-of-game summary. Progress saved in the browser.
 
 **Cut (and why), to be repeated in the README**
@@ -34,8 +34,8 @@
 
 ## 3. Core loop
 
-1. **Start:** name your brand (or take a random one) and pick a product. Starting cash: $5,000.
-2. **Read the map:** every neighborhood is colored by its **score** (0–100) for your product. The sidebar lists the **top 5 recommendations** with reasons.
+1. **Start:** name your brand (or take a random one), pick a product, and pick **Easy or Hard** (Hard preselected). Starting cash: $5,000.
+2. **Read the map:** every neighborhood is colored by its **score** (0–100) for your product. On Easy, the sidebar also lists the **top 5 recommendations** with reasons.
 3. **Buy ads:** click a neighborhood, choose Low / Medium / High. Ads cost money every day while active.
 4. **Earn:** each day, customers arrive from neighborhoods where your ads are running. Revenue minus ad spend minus overhead is your daily profit. It can be negative.
 5. **Reinvest:** move budget toward what works, expand to new neighborhoods, cut what doesn't pay.
@@ -45,15 +45,16 @@ Time runs on its own: 1 game day every 3 s at 1×, with Pause, 1×, 2× and 4×.
 
 ## 4. Screens and UX
 
-- **Start screen:** one sentence on what the game is, the 6 product cards (icon, name, one-line "who buys this"), a brand-name field, and Start. No signup.
+- **Start screen:** one sentence on what the game is, the 6 product cards (icon, name, one-line "who buys this"), a brand-name field, a **difficulty toggle: Hard (default) / Easy** with one line each ("Hard: read the map and decide for yourself" / "Easy: get suggestions on where to place ads"), and Start. No signup.
 - **Main screen**
   - Full-screen MapLibre map of SF with neighborhood polygons colored by score (sequential scale). Neighborhoods with active ads get an outline and a small level badge.
   - **Top bar:** brand name, day X/90, cash, profit per day (green/red), speed controls.
-  - **Sidebar, default tab "Recommended":** top 5 actions, e.g. "Medium ads in Mission — +$41/day, $60/day cost", each with a one-line reason and a Buy button.
-  - **Sidebar, "Your campaigns" tab:** each active neighborhood with level, cost, customers/day and profit/day, sortable. This is where you find losers to cut.
+  - **Sidebar, "Recommended" tab (Easy only; default tab on Easy):** top 5 actions, e.g. "Medium ads in Mission — +$41/day, $60/day cost", each with a one-line reason and a Buy button.
+  - **Sidebar, "Your campaigns" tab (both modes; the only/default tab on Hard):** each active neighborhood with level, cost, customers/day and profit/day, sortable. This is where you find losers to cut.
   - **Neighborhood panel (on click):** score, "why" breakdown (section 6.6), price per level, projected customers and profit per level, the 3 most relevant real places as examples ("Equinox, Barry's, 29 other gyms").
   - **Event toasts** in a corner, with a log.
-- **First-run hints:** three short tooltips: "Colors show where your product fits", "Start with a recommendation", "Watch profit per day; cut what's red". Dismissible, shown once.
+- **First-run hints:** three short tooltips: "Colors show where your product fits", then on Easy "Start with a recommendation" / on Hard "Click a neighborhood to see why it scores that way", then "Watch profit per day; cut what's red". Dismissible, shown once.
+- **Difficulty** is fixed for the run (no switching mid-game) and shown on the end screen.
 - **End screen:** summary stats, a line chart of cash over time, Play again.
 
 Accessibility: the color scale also has number labels on hover and in the panel; nothing depends on color alone.
@@ -124,9 +125,9 @@ Place filtering: `operating_status` ≠ `permanently_closed`/`temporarily_closed
 - **Costs** = Σ ad spend + overhead, where overhead = $120/day + 10% of revenue (rent, fulfillment, staff, all rolled into one line).
 - **Profit/day** = revenue − costs. Can be negative.
 
-### 6.7 Score and recommendations
+### 6.7 Score and recommendations (recommendations: Easy mode only)
 - **Score (0–100)** for the choropleth: steady-state profit per ad dollar at Medium, `(revenue_at_medium − 0.1 · revenue_at_medium − cost_at_medium) / cost_at_medium`, mapped to 0–100 by percentile across zones. It ignores current campaigns so the map stays stable.
-- **Recommendations:** for every zone and every one-step change (Off→Low, Low→Med, Med→High, and downgrades), compute the steady-state Δprofit/day. Show the 5 best positive ones. Downgrades appear when a campaign loses money ("Cut High ads in Marina: saves $32/day").
+- **Recommendations (Easy only):** for every zone and every one-step change (Off→Low, Low→Med, Med→High, and downgrades), compute the steady-state Δprofit/day. Show the 5 best positive ones. Downgrades appear when a campaign loses money ("Cut High ads in Marina: saves $32/day").
 - **Reasons** shown with each: the two demand signals contributing most to Fit, with real counts ("31 gyms and fitness studios"), the competition line ("only 2 sporting-goods stores"), and the price line ("cheaper than 70% of SF"). Text comes from the numbers above, not hand-written per zone.
 
 ### 6.8 Events (roughly every 8–12 days, seeded)
@@ -191,20 +192,20 @@ public/data/
 ## 8. App architecture
 
 - **Stack:** Vite + React + TypeScript, MapLibre GL JS, OpenFreeMap basemap (free, no key). No backend.
-- **Simulation is a pure TypeScript module** (`src/sim/`): `initGame(seed, product)`, `step(state, actions) → state`, `recommend(state)`, `explain(zone)`. No React, no DOM, so it can be unit-tested and run headless.
+- **Simulation is a pure TypeScript module** (`src/sim/`): `initGame(seed, product, difficulty)`, `step(state, actions) → state`, `recommend(state)`, `explain(zone)`. Difficulty only gates what the UI shows; the economy is identical in both modes. No React, no DOM, so it can be unit-tested and run headless.
 - **Seeded RNG** so a run can be reproduced from its seed (useful for debugging and tests).
 - **Persistence:** game state in localStorage, wrapped in try/catch. If storage fails, the game still runs.
 - **Tests (Vitest):** reach curve monotonic with diminishing returns, ads decay after stopping, competition lowers potential, bankruptcy triggers, recommendations never suggest a negative Δprofit action, same seed gives the same run.
-- **Balance script:** `npm run balance` plays 200 seeded runs per product with three bots (do nothing, random, always-take-top-recommendation) and prints final cash. Target: top-recommendation > random > do nothing, do-nothing slowly loses money, random sometimes goes bankrupt, nobody gets rich by day 20.
+- **Balance script (later, once the economy is in place):** `npm run balance` plays 200 seeded runs per product with three bots (do nothing, random, always-take-top-recommendation) and prints final cash. Target: top-recommendation > random > do nothing, do-nothing slowly loses money, random sometimes goes bankrupt, nobody gets rich by day 20.
 - **Hosting:** static site on Render's free tier. Static sites don't sleep, so the first load is fast.
 
 ## 9. Build order
 
 1. Extraction script → inspect SF zones, category counts and building heights. Decide neighborhoods vs hexes. *(Check this first: it's the biggest data unknown.)*
-2. Simulation module + tests + balance script, before any UI.
+2. Simulation module + tests, before any UI. Balance script once there's enough logic to be worth balancing.
 3. Map with score choropleth and the neighborhood "why" panel.
-4. Game loop: top bar, ad buying, campaigns tab, recommendations.
-5. Start and end screens, first-run hints, events.
+4. Game loop: top bar, ad buying, campaigns tab, recommendations (Easy).
+5. Start and end screens (incl. Easy/Hard choice), first-run hints, events.
 6. Polish, mobile check, deploy, README.
 
 ## 10. Data decisions (settled 2026-11-20 from `scripts/inspect_sf.py`, release 2026-11-18.0)

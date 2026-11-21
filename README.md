@@ -9,10 +9,11 @@ Ad Empire SF is a small tycoon game that runs in the browser. You pick a product
 ## How it plays
 
 1. **Pick a product:** cold brew subscription, protein & supplements, premium pet food, kids & baby gear, late-night snack delivery, or clean skincare.
-2. **Read the map:** every neighborhood is colored by how well it fits your product, and a sidebar suggests the best next moves with a plain-language reason ("31 gyms and fitness studios, only 2 sporting-goods stores, cheaper than 70% of SF").
-3. **Buy ads:** set each neighborhood to Off, Low, Medium or High. Ads cost money every day they run, have diminishing returns, fade after you stop, and spill over a little into neighboring areas.
-4. **Earn and reinvest:** customers arrive from where your ads run. Cut what loses money, expand what works, and survive events like street fairs, rainy weeks and rival campaigns.
-5. **Finish:** after day 90 you see your net worth, your best and worst neighborhoods, and your cash over time. Run out of cash for three days and you're bankrupt.
+2. **Pick a difficulty:** **Hard** (the default) leaves the decisions to you. **Easy** adds a sidebar that suggests where to place ads next, with a plain-language reason ("31 gyms and fitness studios, only 2 sporting-goods stores, cheaper than 70% of SF").
+3. **Read the map:** every neighborhood is colored by how well it fits your product. Click one to see why: what's there, who you're up against, what ads cost.
+4. **Buy ads:** set each neighborhood to Off, Low, Medium or High. Ads cost money every day they run, have diminishing returns, fade after you stop, and spill over a little into neighboring areas.
+5. **Earn and reinvest:** customers arrive from where your ads run. Cut what loses money, expand what works, and survive events like street fairs, rainy weeks and rival campaigns.
+6. **Finish:** after day 90 you see your net worth, your best and worst neighborhoods, and your cash over time. Run out of cash for three days and you're bankrupt.
 
 ## Where the numbers come from
 
@@ -70,10 +71,11 @@ python scripts/build_zones.py    # writes public/data/
 ## Roadmap
 
 - [x] Data pipeline and neighborhoods
-- [ ] Simulation engine with tests and a balance script (bots play hundreds of runs)
+- [ ] Simulation engine with tests
+- [ ] Balance script (bots play many runs to tune the economy)
 - [ ] Map with fit colors and a "why this neighborhood" panel
-- [ ] Game loop: ad buying, campaigns, recommendations
-- [ ] Start and end screens, hints, events
+- [ ] Game loop: ad buying, campaigns, Easy-mode recommendations
+- [ ] Start and end screens (with Easy / Hard), hints, events
 - [ ] Polish and deploy
 
 Planned stack: Vite, React, TypeScript, MapLibre GL, hosted as a static site.
