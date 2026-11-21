@@ -9,6 +9,7 @@ Last updated 2026-11-20. Read this first when picking the project up on another 
 
 ## Where the work is
 Moved to a Mac mini on 2026-11-20 (the Windows desktop wasn't workable). Built-in Python 3.9 works fine with DuckDB 1.4; no new installs needed.
+Repo: private GitHub repo `alexpopa/ad-empire-sf` (push over SSH). `data/raw/` and `.venv/` are git-ignored.
 
 Build order from DESIGN.md section 9:
 1. **Data: done.** `scripts/extract.py` downloads the SF slice (~80 s), `scripts/inspect_sf.py` reports on it, `scripts/build_zones.py` writes `public/data/` (76 zones, 220 KB). Decisions in DESIGN.md section 10.
