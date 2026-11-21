@@ -19,6 +19,9 @@ Build order from DESIGN.md section 9:
 5. Start/end screens (incl. Easy/Hard choice), hints, events.
 6. Polish, deploy, README.
 
+## Open questions
+- Hard mode: keep the fit colors on the map, or remove them / show something neutral? Alexandru wants to see the map working first, then decide (2026-11-21).
+
 ## Rerun the data pipeline (macOS)
 
 ```
