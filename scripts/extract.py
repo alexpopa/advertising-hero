@@ -6,7 +6,9 @@ and keeps only what the game needs:
   places.parquet         id, name, category, hierarchy, confidence, brand, status, lon, lat
   buildings.parquet      id, footprint area (m2), height, num_floors, lon, lat (centroid)
   transit.parquet        id, class, lon, lat
-  divisions.parquet      locality + neighborhood-level areas with polygons (WKB)
+  divisions.parquet      county + neighborhood-level areas with polygons (WKB)
+  division_points.parquet neighborhood / macrohood / microhood label points (names for zones)
+  parks.parquet          large named parks and open spaces from base/land_use (names for zones)
 
 Usage:
   python scripts/extract.py                 # latest release (from the STAC catalog)
@@ -134,8 +136,25 @@ def main() -> int:
                ST_AsWKB(geometry) AS geom_wkb
         FROM {src('divisions', 'division_area')}
         WHERE {where} AND country = 'US'
-          AND subtype IN ('locality', 'localadmin', 'borough', 'macrohood', 'neighborhood', 'microhood')
+          AND subtype IN ('county', 'locality', 'localadmin', 'borough', 'macrohood', 'neighborhood', 'microhood')
     """, RAW / "divisions.parquet")
+
+    # Overture draws outlines for only a few SF neighborhoods, but has label points for many
+    # more. build_zones.py names each hex after the nearest point.
+    run(con, "division points", f"""
+        SELECT id, subtype, names.primary AS name, ST_X(geometry) AS lon, ST_Y(geometry) AS lat
+        FROM {src('divisions', 'division')}
+        WHERE {where} AND country = 'US' AND subtype IN ('macrohood', 'neighborhood', 'microhood')
+    """, RAW / "division_points.parquet")
+
+    run(con, "parks", f"""
+        SELECT id, subtype, class, names.primary AS name,
+               ST_Area(ST_Transform(geometry, 'EPSG:4326', 'EPSG:3310', always_xy := true)) AS area_m2,
+               ST_AsWKB(geometry) AS geom_wkb
+        FROM {src('base', 'land_use')}
+        WHERE {where} AND names.primary IS NOT NULL AND subtype IN ('park', 'protected')
+          AND ST_Area(ST_Transform(geometry, 'EPSG:4326', 'EPSG:3310', always_xy := true)) > 300000
+    """, RAW / "parks.parquet")
 
     (RAW / "release.json").write_text(json.dumps(
         {"release": release, "bbox": BBOX, "extracted": time.strftime("%Y-%m-%d")}, indent=2))

@@ -207,8 +207,19 @@ public/data/
 5. Start and end screens, first-run hints, events.
 6. Polish, mobile check, deploy, README.
 
-## 10. Open questions to settle during step 1
-- Are Overture's SF neighborhoods complete and non-overlapping, or do we need hexes?
-- How many SF buildings have `height` or `num_floors`? If few, `floorArea` falls back to footprint × 2 and People becomes rougher.
-- Do the chosen labels have enough SF places to separate zones? Any product whose signals are too sparse gets swapped.
-- How bad are duplicates in SF after the 30 m name dedupe?
+## 10. Data decisions (settled 2026-11-20 from `scripts/inspect_sf.py`, release 2026-11-18.0)
+
+**Neighborhoods vs hexes → hexes, merged by name.** Overture has `division_area` outlines for only ~16 SF neighborhoods (Hayes Valley, SoMa, Noe Valley...), plus plazas; Marina, Castro, Mission, North Beach, Financial District etc. have no outline. The SF city outline exists, but as the *county* "San Francisco" (consolidated city-county), not a locality. Overture does have ~90 neighborhood/macrohood/microhood **label points**. So `build_zones.py`:
+1. covers SF land with H3 res-8 hexes (~0.74 km²), clipped to the coast (183 hexes);
+2. names each hex after the nearest label point (plazas excluded), or after a big park (Presidio, Golden Gate Park, Lake Merced, McLaren) covering ≥ 50% of it — the smallest park wins, so the Presidio isn't called "Golden Gate National Recreation Area";
+3. drops 18 hexes: 11 nearly empty (< 200 est. people and < 10 places: coast, slivers) and 7 more than 1.5 km from any label (Treasure Island / Yerba Buena Island, a few coastal edges);
+4. merges hexes with the same name into one zone → **76 zones** (inside the 30–120 target).
+Trade-off: names are approximate (nearest-point boundaries, not official ones), and zone sizes vary (1–7 hexes). Merging was chosen over 165 hex zones named "Mission · NE 2": players think "buy ads in the Mission". Ad prices scale with people, so bigger zones aren't a free lunch. Treasure Island is a cut.
+
+**Building heights → good.** 96% of SF buildings have `height`, 2% have `num_floors`. Floors = `num_floors`, else `round(height / 3.5)`, else 2, so People (H) is a reasonable proxy.
+
+**Sparse labels.** `campus` and `kindergarten` have 0 SF places in this release and were removed from `categories.json`. Thin but kept as minor weights: `dog_park` 25, `swimming_pool` 23, `department_store` 23, `toys_and_games_store` 34, `shopping_mall` 35. Every product still has ≥ 2 demand labels with 100+ places, except pet food, which leans on `animal_or_pet_service` (226) and `park` (637). Watch it in the balance script.
+
+**Duplicates and junk → minor.** 77.5k places in the box → 64k after: inside SF, confidence ≥ 0.5, not closed (3.8k were permanently closed), and same-name-within-30 m dedupe (142 removed).
+
+**Output size:** 220 KB total in `public/data/` (target < 3 MB).

@@ -8,25 +8,27 @@ Last updated 2026-11-20. Read this first when picking the project up on another 
 - Research behind the idea: [research-notes.md](research-notes.md).
 
 ## Where the work is
+Moved to a Mac mini on 2026-11-20 (the Windows desktop wasn't workable). Built-in Python 3.9 works fine with DuckDB 1.4; no new installs needed.
+
 Build order from DESIGN.md section 9:
-1. **Extraction script: written, not yet run.** `scripts/extract.py` (download SF slice), `scripts/inspect_sf.py` (report on data quality), `scripts/categories.json` (products and weights).
-2. Simulation module + tests + balance script.
+1. **Data: done.** `scripts/extract.py` downloads the SF slice (~80 s), `scripts/inspect_sf.py` reports on it, `scripts/build_zones.py` writes `public/data/` (76 zones, 220 KB). Decisions in DESIGN.md section 10.
+2. **Next:** simulation module (`src/sim/`) + Vitest tests + balance script, before any UI.
 3. Map with score colors and "why" panel.
 4. Game loop.
 5. Start/end screens, hints, events.
 6. Polish, deploy, README.
 
-## Next step
-On a computer with Python 3.10+:
+## Rerun the data pipeline (macOS)
 
 ```
-python -m venv .venv
-.venv\Scripts\activate          (Windows)  or  source .venv/bin/activate  (macOS/Linux)
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python scripts/extract.py
-python scripts/inspect_sf.py
+python scripts/extract.py        # downloads into data/raw/ (not committed)
+python scripts/inspect_sf.py     # optional data-quality report
+python scripts/build_zones.py    # writes public/data/
 ```
 
-Then use the inspect report to answer DESIGN.md section 10 (neighborhoods vs hexes, building height coverage, sparse product categories) and write `scripts/build_zones.py`.
-
-Note: `scripts/extract.py` has not been run yet, so expect small fixes (Overture column names or DuckDB function details).
+## Trade-offs and cuts logged so far (for the README)
+- Zones are H3 hexes named after the nearest Overture neighborhood point and merged by name, because Overture outlines only ~16 SF neighborhoods. Names are approximate.
+- Treasure Island / Yerba Buena Island dropped: no Overture neighborhood label within 1.5 km.
+- `campus` and `kindergarten` labels removed: 0 SF places.

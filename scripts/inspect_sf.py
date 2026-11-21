@@ -31,8 +31,11 @@ def main() -> None:
     con.execute(f"CREATE VIEW places AS SELECT * FROM '{RAW}/places.parquet'")
     con.execute(f"CREATE VIEW buildings AS SELECT * FROM '{RAW}/buildings.parquet'")
     con.execute(f"CREATE VIEW transit AS SELECT * FROM '{RAW}/transit.parquet'")
+    # DuckDB >= 1.4 reads the WKB column back as GEOMETRY already; older versions give a BLOB.
+    gtype = q(con, f"SELECT typeof(geom_wkb) FROM '{RAW}/divisions.parquet' LIMIT 1")[0][0]
+    gexpr = "geom_wkb" if gtype == "GEOMETRY" else "ST_GeomFromWKB(geom_wkb)"
     con.execute(f"""CREATE TABLE div AS
-        SELECT * EXCLUDE geom_wkb, ST_GeomFromWKB(geom_wkb) AS geom FROM '{RAW}/divisions.parquet'""")
+        SELECT * EXCLUDE geom_wkb, {gexpr} AS geom FROM '{RAW}/divisions.parquet'""")
 
     print("\n== Divisions ==")
     for row in q(con, "SELECT subtype, count(*), sum(CASE WHEN is_land THEN 1 ELSE 0 END) FROM div GROUP BY 1 ORDER BY 2 DESC"):
