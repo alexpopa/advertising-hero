@@ -34,7 +34,7 @@
 
 ## 3. Core loop
 
-1. **Start:** name your brand (or take a random one), pick a product, and pick **Easy or Hard** (Hard preselected). Starting cash: $5,000.
+1. **Start:** name your brand (or take a random one), pick a product, and pick **Easy or Hard** (Hard preselected). Starting cash: $3,000 (was $5,000; see 6.11).
 2. **Read the map:** every neighborhood is colored by its **score** (0–100) for your product. On Easy, the sidebar also lists the **top 5 recommendations** with reasons.
 3. **Buy ads:** click a neighborhood, choose Low / Medium / High. Ads cost money every day while active.
 4. **Earn:** each day, customers arrive from neighborhoods where your ads are running. Revenue minus ad spend minus overhead is your daily profit. It can be negative.
@@ -141,7 +141,7 @@ Place filtering: `operating_status` ≠ `permanently_closed`/`temporarily_closed
 
 Events are fictional. They never name real businesses.
 
-### 6.9 Sanity check of the numbers
+### 6.9 Sanity check of the numbers (original estimate, superseded by 6.11)
 Example zone: 15,000 people, Fit 0.7, compFactor 0.6, product with $25 order at 40% margin.
 - Pmax = 15,000 × 0.002 × 0.76 × 0.6 ≈ 13.7 customers/day.
 - Medium: ρ ≈ 0.71 → 9.7 customers → $97 gross margin → $87 after the 10% overhead share.
@@ -151,24 +151,54 @@ Example zone: 15,000 people, Fit 0.7, compFactor 0.6, product with $25 order at 
 These constants are a starting point. The balance script (section 8) tunes them.
 
 ### 6.10 Tuning constants (all in `src/sim/constants.ts`)
-| Name | Start value |
+Start values from this design, and what they are after the first run on real data (2026-11-21, section 6.11).
+
+| Name | Start value | Now |
+|---|---|---|
+| startCash | $5,000 | **$3,000** |
+| days | 90 | 90 |
+| m² per person | 60 | 60 |
+| base purchase rate r | 0.002 | **calibrated per product** (6.11) |
+| fit effect | 0.2 + 0.8·Fit | **0.05 + 0.95·Fit²** |
+| κ (competition) | 6 weighted competitors | **6 weighted competitors per 10,000 people** |
+| branded competitor weight | 1.5 | 1.5 |
+| c0 (ad price base) | $20 | $20 before the money scale (6.11) |
+| campaign fee | none | **$15/day per running campaign** |
+| level multipliers | 1, 2, 4 | 1, 2, 4 |
+| ad decay | 0.8/day | **0.9/day** |
+| reach scale | 8 | **16** (same steady reach: Low 46%, Medium 71%, High 92%) |
+| spillover | 0.15 of neighbor spend | **0.05 of each neighbor's ad intensity** |
+| brand bonus | 0.02/zone, cap 1.25 | **0.01/zone, cap 1.10** |
+| noise sd | 0.08 | 0.08 |
+| fixed overhead | $120/day | $120/day |
+| variable overhead | 10% of revenue | 10% of revenue |
+| bankruptcy | 3 days below $0 | 3 days below $0 |
+
+### 6.11 What changed after the first numbers, and why (2026-11-21)
+Measured with `npm run report` (a few simple strategies per product, 5 seeds), before any UI.
+
+1. **Competition per 10,000 people, not absolute counts.** Big zones hold more of everything, so absolute counts ranked the Financial District *last* for cold brew, a product for office workers.
+2. **Purchase rate calibrated per product.** With the guessed rates, pet food, kids gear, skincare and supplements were profitable in all 76 zones while cold brew and late-night lost money almost everywhere. Overture has no sales data, so the rate is now set so the median zone's return at Medium is 0.8× its ad cost (`medianReturnAtMedium`).
+3. **Money scale calibrated per product.** Customers and ad prices are scaled together (which never changes a zone's best level) so that perfect play makes $300/day at full strength (`perfectDailyProfit`). Every product is equally winnable; the data decides *where* the money is.
+4. **Sharper fit (Fit²).** Great-fit zones were only ~1.5× better than average, so Medium and High were never worth it.
+5. **Spillover and brand bonus cut.** At 0.15 per neighbor (~6 neighbors), blanketing the city at Low gave every zone nearly Medium reach for free, and "Low everywhere" nearly matched perfect play. Spillover is now in ad-intensity units, so an expensive downtown zone doesn't flood its cheap neighbors.
+6. **$15/day campaign fee.** Even after 5, blanketing earned ~70% of perfect play, because weak zones are mostly cheap residential areas that lose only a few dollars each. A flat fee per campaign (creative, setup, management) makes *where* matter.
+7. **Slower ads, less starting cash.** Ads take ~10 days to build and fade 10%/day; start with $3,000. Before this, perfect play never dropped below its starting cash and was rich by day 20.
+
+Result (median of 5 seeds; ranges across the 6 products):
+
+| Strategy | End of day 90 |
 |---|---|
-| startCash | $5,000 |
-| days | 90 |
-| m² per person | 60 |
-| base purchase rate r | 0.002 |
-| κ (competition) | 6 |
-| branded competitor weight | 1.5 |
-| c0 (ad price base) | $20 |
-| level multipliers | 1, 2, 4 |
-| ad decay | 0.8/day |
-| spillover | 0.15 |
-| reach scale | 8 |
-| brand bonus | 0.02/zone, cap 1.25 |
-| noise sd | 0.08 |
-| fixed overhead | $120/day |
-| variable overhead | 10% of revenue |
-| bankruptcy | 3 days below $0 |
+| Perfect plan from day 1 | $41k–47k (about $6–8k on day 20; cash dips to ~$1–2.5k in week 1) |
+| Medium in the top 10 zones by score | $32k–43k |
+| Easy mode: take the top suggestion every day | $32k–40k |
+| Do nothing | bankrupt on day 28 |
+| Low everywhere / High everywhere | bankrupt in 3–5 days |
+
+**Known issues to revisit in the balance pass:**
+- Only 11–16 of 76 zones are worth advertising in per product, and within a product one level usually wins everywhere (Medium for most, High for late-night), so the level choice is weak.
+- "Medium in the top 10 by score" is close to perfect: the score colors nearly give the answer away. This matters for the open question of whether Hard mode shows them.
+- Late-night ad prices are low ($5–13/day Low) because bars are concentrated in a few zones.
 
 ## 7. Data pipeline (in the repo)
 
@@ -192,7 +222,7 @@ public/data/
 ## 8. App architecture
 
 - **Stack:** Vite + React + TypeScript, MapLibre GL JS, OpenFreeMap basemap (free, no key). No backend.
-- **Simulation is a pure TypeScript module** (`src/sim/`): `initGame(seed, product, difficulty)`, `step(state, actions) → state`, `recommend(state)`, `explain(zone)`. Difficulty only gates what the UI shows; the economy is identical in both modes. No React, no DOM, so it can be unit-tested and run headless.
+- **Simulation is a pure TypeScript module** (`src/sim/`, done 2026-11-21: `world.ts` static per-zone numbers and calibration, `game.ts` daily step and events, `recommend.ts`, `explain.ts`, 51 Vitest tests in `sim.test.ts`, `npm run report` for a quick economy check): `initGame(seed, product, difficulty)`, `step(state, actions) → state`, `recommend(state)`, `explain(zone)`. Difficulty only gates what the UI shows; the economy is identical in both modes. No React, no DOM, so it can be unit-tested and run headless.
 - **Seeded RNG** so a run can be reproduced from its seed (useful for debugging and tests).
 - **Persistence:** game state in localStorage, wrapped in try/catch. If storage fails, the game still runs.
 - **Tests (Vitest):** reach curve monotonic with diminishing returns, ads decay after stopping, competition lowers potential, bankruptcy triggers, recommendations never suggest a negative Δprofit action, same seed gives the same run.

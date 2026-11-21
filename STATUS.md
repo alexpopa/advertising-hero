@@ -13,13 +13,15 @@ Repo: private GitHub repo `alexpopa/ad-empire-sf` (push over SSH). `data/raw/` a
 
 Build order from DESIGN.md section 9:
 1. **Data: done.** `scripts/extract.py` downloads the SF slice (~80 s), `scripts/inspect_sf.py` reports on it, `scripts/build_zones.py` writes `public/data/` (76 zones, 220 KB). Decisions in DESIGN.md section 10.
-2. **Next:** simulation module (`src/sim/`) + Vitest tests, before any UI. Balance script later, once there's enough logic to balance.
+2. **Simulation engine: done (2026-11-21).** `src/sim/` (pure TypeScript, no UI), 51 tests passing (`npm test`), economy check with `npm run report`. Tuned against real data; what changed and why is in DESIGN.md 6.11. Full balance script (many seeded runs, bots) still to do, once more logic exists.
+   **Next:** the map (step 3).
 3. Map with score colors and "why" panel.
 4. Game loop.
 5. Start/end screens (incl. Easy/Hard choice), hints, events.
 6. Polish, deploy, README.
 
 ## Open questions
+- Only 11-16 of 76 zones are worth advertising in per product, and one ad level usually wins within a product. Revisit in the balance pass (DESIGN.md 6.11).
 - Hard mode: keep the fit colors on the map, or remove them / show something neutral? Alexandru wants to see the map working first, then decide (2026-11-21).
 
 ## Rerun the data pipeline (macOS)
@@ -33,6 +35,7 @@ python scripts/build_zones.py    # writes public/data/
 ```
 
 ## Trade-offs and cuts logged so far (for the README)
+- 2026-11-21: economy calibrated per product (Overture has no sales data), competition per capita, $15/day campaign fee so blanketing the city fails, start cash $3,000. Details DESIGN.md 6.11.
 - 2026-11-21: recommendations moved behind an **Easy** mode; **Hard** is the default and shows none. Always-on recommendations would just hand players the answer.
 - Zones are H3 hexes named after the nearest Overture neighborhood point and merged by name, because Overture outlines only ~16 SF neighborhoods. Names are approximate.
 - Treasure Island / Yerba Buena Island dropped: no Overture neighborhood label within 1.5 km.
