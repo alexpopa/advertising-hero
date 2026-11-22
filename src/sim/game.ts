@@ -162,3 +162,34 @@ export function step(world: World, state: GameState, actions: Action[] = []): Ga
     totals,
   };
 }
+
+/** A zone's profit on the most recent day: its gross profit minus its ad spend. */
+export function zoneDayProfit(state: GameState, zone: number): number {
+  const d = state.lastDay;
+  return d.revenue[zone] * (1 - C.variableOverhead) - d.adSpend[zone];
+}
+
+/** A zone's profit over the whole run so far. */
+export function zoneTotalProfit(state: GameState, zone: number): number {
+  const t = state.totals;
+  return t.revenue[zone] * (1 - C.variableOverhead) - t.adSpend[zone];
+}
+
+/** Plain-English text for an event. Events are fictional and never name real businesses. */
+export function describeEvent(world: World, e: ActiveEvent): { title: string; detail: string } {
+  const where = e.zone >= 0 ? world.zones[e.zone].name : "";
+  const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
+  const d = EVENTS[e.kind].days;
+  switch (e.kind) {
+    case "streetFair":
+      return { title: `Street fair in ${where}`, detail: `+40% customers there for ${days(d)}` };
+    case "rain":
+      return { title: "Rainy week", detail: `−10% customers everywhere for ${days(d)}` };
+    case "competitor":
+      return { title: `Rival campaign in ${where}`, detail: `−20% customers there for ${days(d)}` };
+    case "viral":
+      return { title: "Your brand went viral", detail: `+10% customers everywhere for ${days(d)}` };
+    case "priceUp":
+      return { title: `Ad prices up in ${where}`, detail: `+25% ad prices there for ${days(d)}` };
+  }
+}

@@ -15,13 +15,15 @@ Build order from DESIGN.md section 9:
 1. **Data: done.** `scripts/extract.py` downloads the SF slice (~80 s), `scripts/inspect_sf.py` reports on it, `scripts/build_zones.py` writes `public/data/` (76 zones, 220 KB). Decisions in DESIGN.md section 10.
 2. **Simulation engine: done (2026-11-21).** `src/sim/` (pure TypeScript, no UI), 51 tests passing (`npm test`), economy check with `npm run report`. Tuned against real data; what changed and why is in DESIGN.md 6.11. Full balance script (many seeded runs, bots) still to do, once more logic exists.
 3. **Map: done (2026-11-21).** MapLibre + OpenFreeMap basemap, zones colored by score in 5 validated blue steps with a legend, hover tooltip (name + score), click for the "why" panel (fit, competition, price, cost/customers/profit per level, real place names). Phone layout: bottom sheet, map recenters on the selected zone. A temporary product picker in the top bar stands in for the start screen. `?product=late_night&zone=mission` opens a specific view. Checked by screenshot in Chrome (desktop + phone, dev + production build).
-   **Next:** the game loop (step 4).
-4. Game loop.
-5. Start/end screens (incl. Easy/Hard choice), hints, events.
+4. **Game loop: done (2026-11-22).** Top bar (day, cash, profit/day, pause/1x/2x/4x/+1 day, Space pauses), buy ads from the neighborhood panel (Off/Low/Medium/High with live cost, awareness meter, yesterday's result), Campaigns tab (sortable, worst first, change level inline), Suggestions tab on Easy only, Events tab, event toasts, below-$0 warning banner, campaign outlines + L/M/H badges on the map. Starts paused on day 0.
+5. **Start/end screens, hints, events: done (2026-11-22).** Start: brand name (random default), 6 product cards, Hard/Easy (Hard default), Continue a saved run. End: final cash, profit, ad spend, customers, cash-over-time chart with hover, best neighborhoods and money losers, a tip that depends on why you went bankrupt. First-run "How to play" card, shown once. Run saved to localStorage after every change.
+   Tested with scripted playthroughs in Chrome (Easy desktop, Hard phone, production build, save/reload/continue): no errors. Not tested: real phones, Safari/Firefox.
+   **Next:** deploy (step 6), then balance and polish.
 6. Polish, deploy, README.
 
 ## Open questions
 - Only 11-16 of 76 zones are worth advertising in per product, and one ad level usually wins within a product. Revisit in the balance pass (DESIGN.md 6.11).
+- Playtest finding: on Hard, one good campaign still goes bankrupt because the $120/day running cost needs ~5 campaigns to cover. The hints and end-screen tip now say so; consider whether the early game is too punishing.
 - Hard mode: keep the fit colors on the map, or remove them / show something neutral? Alexandru wants to see the map working first, then decide (2026-11-21).
 
 ## Run the app

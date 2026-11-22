@@ -2,7 +2,19 @@
  * "Why does this neighborhood score the way it does?" — the panel shown on click.
  * Everything here is generated from the numbers; nothing is written per neighborhood.
  */
-import { C, LEVEL_NAMES, explain, labelName, levelCost, reach, steadyPressure, type Level, type World } from "./sim";
+import {
+  C,
+  LEVEL_NAMES,
+  adCost,
+  explain,
+  labelName,
+  reach,
+  steadyPressure,
+  zoneDayProfit,
+  type GameState,
+  type Level,
+  type World,
+} from "./sim";
 import { scoreBin, usd } from "./scale";
 
 interface Props {
@@ -10,9 +22,12 @@ interface Props {
   zone: number;
   examples: Record<string, string[]> | undefined;
   onClose: () => void;
+  /** During a game: the current state and a way to change this zone's ad level. */
+  state?: GameState;
+  onSetLevel?: (level: Level) => void;
 }
 
-export function ZonePanel({ world, zone, examples, onClose }: Props) {
+export function ZonePanel({ world, zone, examples, onClose, state, onSetLevel }: Props) {
   const z = world.zones[zone];
   const e = explain(world, zone);
   const bin = scoreBin(z.score);
@@ -47,6 +62,8 @@ export function ZonePanel({ world, zone, examples, onClose }: Props) {
         </span>
       </div>
 
+      {state && onSetLevel && <AdControls world={world} zone={zone} state={state} onSetLevel={onSetLevel} />}
+
       <h3>Why</h3>
       <ul className="why">
         <li>{e.fitLine}</li>
@@ -70,7 +87,7 @@ export function ZonePanel({ world, zone, examples, onClose }: Props) {
             return (
               <tr key={l} className={l === best ? "best" : undefined}>
                 <th scope="row">{LEVEL_NAMES[l]}</th>
-                <td>{usd(levelCost(z.price, l))}</td>
+                <td>{usd(state ? adCost(world, state, zone, l) : adCost(world, NO_EVENTS, zone, l))}</td>
                 <td>{(z.pmax * reach(steadyPressure(l))).toFixed(1)}</td>
                 <td className={profit >= 0 ? "pos" : "neg"}>
                   {profit >= 0 ? "+" : ""}
@@ -107,5 +124,78 @@ export function ZonePanel({ world, zone, examples, onClose }: Props) {
         contributors). Sales numbers are part of the game, not real data.
       </p>
     </aside>
+  );
+}
+
+/** adCost only reads events from the state, so outside a game an empty list is enough. */
+const NO_EVENTS = { events: [] } as unknown as GameState;
+
+function AdControls({
+  world,
+  zone,
+  state,
+  onSetLevel,
+}: {
+  world: World;
+  zone: number;
+  state: GameState;
+  onSetLevel: (level: Level) => void;
+}) {
+  const level = state.levels[zone];
+  const strength = reach(state.pressure[zone]) / reach(steadyPressure(3));
+  const customers = state.lastDay.customers[zone];
+  const profit = zoneDayProfit(state, zone);
+  const active = level > 0 || customers > 0.05;
+  const priceUp = state.events.some((e) => e.kind === "priceUp" && e.zone === zone);
+  const disabled = state.status !== "playing";
+
+  return (
+    <section className="ad-controls" aria-label="Your ads here">
+      <h3>Your ads here</h3>
+      <div className="segmented levels-pick" role="radiogroup" aria-label="Ad level">
+        {([0, 1, 2, 3] as Level[]).map((l) => (
+          <button
+            key={l}
+            role="radio"
+            aria-checked={level === l}
+            className={level === l ? "on" : ""}
+            disabled={disabled}
+            onClick={() => onSetLevel(l)}
+          >
+            <b>{LEVEL_NAMES[l]}</b>
+            <span className="small">{l === 0 ? "$0" : usd(adCost(world, state, zone, l))}/day</span>
+          </button>
+        ))}
+      </div>
+      {priceUp && <p className="small warn">Ad prices are up 25% here for a few days.</p>}
+      {active && (
+        <dl className="zone-stats">
+          <div>
+            <dt>Awareness</dt>
+            <dd>
+              <span className="meter" aria-hidden>
+                <span style={{ width: `${Math.round(strength * 100)}%` }} />
+              </span>
+              {Math.round(reach(state.pressure[zone]) * 100)}% reached
+            </dd>
+          </div>
+          {state.day > 0 && (
+          <div>
+            <dt>Yesterday</dt>
+            <dd>
+              {customers.toFixed(1)} customers,{" "}
+              <span className={profit >= 0 ? "pos" : "neg"}>
+                {profit >= 0 ? "+" : ""}
+                {usd(profit)}
+              </span>
+            </dd>
+          </div>
+          )}
+        </dl>
+      )}
+      {level > 0 && strength < 0.6 && (
+        <p className="muted small">Ads take about 10 days to reach full strength, so early days lose money.</p>
+      )}
+    </section>
   );
 }

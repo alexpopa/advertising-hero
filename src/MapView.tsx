@@ -11,7 +11,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 
 maplibregl.setWorkerUrl(workerUrl);
-import type { World } from "./sim";
+import { LEVEL_NAMES, type Level, type World } from "./sim";
 import { SCORE_BINS } from "./scale";
 
 const SF_BOUNDS: [number, number, number, number] = [-122.52, 37.7, -122.35, 37.835];
@@ -32,6 +32,10 @@ interface Props {
   world: World;
   selected: number | null;
   onSelect: (zone: number | null) => void;
+  /** Current ad level per zone; zones with ads get an outline and an L/M/H badge. */
+  levels?: Level[];
+  /** On phones, share of the screen covered by an open bottom sheet. */
+  sheetOpen?: boolean;
 }
 
 interface Hover {
@@ -40,7 +44,7 @@ interface Hover {
   zone: number;
 }
 
-export function MapView({ geojson, world, selected, onSelect }: Props) {
+export function MapView({ geojson, world, selected, onSelect, levels, sheetOpen }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [ready, setReady] = useState(false);
@@ -99,6 +103,33 @@ export function MapView({ geojson, world, selected, onSelect }: Props) {
         firstLabel,
       );
       m.addLayer({
+        id: "zones-active",
+        type: "line",
+        source: "zones",
+        filter: [">", ["get", "level"], 0],
+        paint: { "line-color": "#0b0b0b", "line-width": 1.5, "line-dasharray": [2, 1.5] },
+      });
+      m.addSource("badges", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      m.addLayer({
+        id: "badges-circle",
+        type: "circle",
+        source: "badges",
+        paint: { "circle-radius": 10, "circle-color": "#ffffff", "circle-stroke-color": "#0b0b0b", "circle-stroke-width": 1.5 },
+      });
+      m.addLayer({
+        id: "badges-text",
+        type: "symbol",
+        source: "badges",
+        layout: {
+          "text-field": ["get", "letter"],
+          "text-font": ["Noto Sans Bold"],
+          "text-size": 12,
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: { "text-color": "#0b0b0b" },
+      });
+      m.addLayer({
         id: "zones-hover",
         type: "line",
         source: "zones",
@@ -152,11 +183,26 @@ export function MapView({ geojson, world, selected, onSelect }: Props) {
       ...geojson,
       features: geojson.features.map((f) => ({
         ...f,
-        properties: { ...f.properties, score: world.byId.get(String(f.properties?.id))?.score ?? 0 },
+        properties: {
+          ...f.properties,
+          score: world.byId.get(String(f.properties?.id))?.score ?? 0,
+          level: levels?.[world.byId.get(String(f.properties?.id))?.index ?? -1] ?? 0,
+        },
       })),
     };
     (map.current!.getSource("zones") as GeoJSONSource).setData(data);
-  }, [ready, geojson, world]);
+    const badges: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: world.zones
+        .filter((z) => (levels?.[z.index] ?? 0) > 0)
+        .map((z) => ({
+          type: "Feature",
+          properties: { letter: LEVEL_NAMES[levels![z.index]][0] },
+          geometry: { type: "Point", coordinates: z.data.center },
+        })),
+    };
+    (map.current!.getSource("badges") as GeoJSONSource).setData(badges);
+  }, [ready, geojson, world, levels]);
 
   // Outline the selected zone. On phones the panel covers the lower part of the screen,
   // so move the map to keep the selected zone in view above it.
@@ -167,11 +213,12 @@ export function MapView({ geojson, world, selected, onSelect }: Props) {
     m.setFilter("zones-selected", ["==", ["get", "id"], id]);
     if (window.innerWidth <= PHONE_WIDTH) {
       const panel = Math.round(m.getContainer().clientHeight * PHONE_PANEL_SHARE);
-      if (selected === null) m.fitBounds(SF_BOUNDS, { padding: 24 });
-      else m.easeTo({ center: world.zones[selected].data.center, zoom: 12.5, padding: { top: 0, left: 0, right: 0, bottom: panel } });
+      const padding = { top: 0, left: 0, right: 0, bottom: selected !== null || sheetOpen ? panel : 0 };
+      if (selected === null) m.fitBounds(SF_BOUNDS, { padding: { ...padding, top: 24, left: 24, right: 24 } });
+      else m.easeTo({ center: world.zones[selected].data.center, zoom: 12.5, padding });
     }
-    // Only when the selection changes, not when the product does.
-  }, [ready, selected]);
+    // Only when the selection or sheet changes, not when the product does.
+  }, [ready, selected, sheetOpen]);
 
   const hz = hover ? world.zones[hover.zone] : null;
   return (
