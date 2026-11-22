@@ -21,6 +21,13 @@ Build order from DESIGN.md section 9:
    **Next:** deploy (step 6), then balance and polish.
 6. Polish, deploy, README.
 
+## Deploy notes (for step 6)
+- Plan: Render **static site** on the free tier (static sites don't sleep, unlike free web services). No backend.
+- Build command `npm ci && npm run build`, publish directory `dist`. The map data in `public/data/` is committed, so the build needs no Python or Overture download.
+- Render needs Alexandru's account connected to the GitHub repo `alexpopa/ad-empire-sf` (currently private; Render can read private repos once GitHub access is granted).
+- After deploy, check the map actually renders on the live URL (the MapLibre worker gotcha in "Run the app" broke production once).
+- Nothing private goes in render.yaml, the site, or commit messages (see CLAUDE.local.md).
+
 ## Open questions
 - Only 11-16 of 76 zones are worth advertising in per product, and one ad level usually wins within a product. Revisit in the balance pass (DESIGN.md 6.11).
 - Playtest finding: on Hard, one good campaign still goes bankrupt because the $120/day running cost needs ~5 campaigns to cover. The hints and end-screen tip now say so; consider whether the early game is too punishing.
