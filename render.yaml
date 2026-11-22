@@ -1,0 +1,17 @@
+# Render Blueprint: a free static site, no backend.
+# The map data in public/data/ is committed, so the build needs no Python.
+services:
+  - type: web
+    runtime: static
+    name: ad-empire-sf
+    branch: main
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+    headers:
+      # Hashed build files never change, so browsers can keep them.
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable

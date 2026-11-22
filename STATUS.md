@@ -23,7 +23,8 @@ Build order from DESIGN.md section 9:
 
 ## Deploy notes (for step 6)
 - Plan: Render **static site** on the free tier (static sites don't sleep, unlike free web services). No backend.
-- Build command `npm ci && npm run build`, publish directory `dist`. The map data in `public/data/` is committed, so the build needs no Python or Overture download.
+- **`render.yaml` added (2026-11-22)**: Render Blueprint for a free static site. Build `npm ci && npm run build`, publish `dist`, Node 24 (also pinned in `.node-version`), long cache on hashed `/assets/*`. Clean install + build checked locally; not yet deployed.
+- To deploy: Render dashboard → New → Blueprint → pick `alexpopa/ad-empire-sf` → Apply. Pushes to `main` redeploy automatically. The map data in `public/data/` is committed, so the build needs no Python or Overture download.
 - Render needs Alexandru's account connected to the GitHub repo `alexpopa/ad-empire-sf` (currently private; Render can read private repos once GitHub access is granted).
 - After deploy, check the map actually renders on the live URL (the MapLibre worker gotcha in "Run the app" broke production once).
 - Nothing private goes in render.yaml, the site, or commit messages (see CLAUDE.local.md).
