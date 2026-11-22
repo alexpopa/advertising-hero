@@ -6,6 +6,9 @@ export default defineConfig({
   // MapLibre 6 loads its worker from a file next to itself; Vite's dependency
   // pre-bundling moves the library and breaks that path, so serve it as-is.
   optimizeDeps: { exclude: ["maplibre-gl"] },
+  // Fixed ports so this never takes another local project's port (5173 is a common default).
+  server: { port: 5174, strictPort: true },
+  preview: { port: 4174, strictPort: true },
   test: {
     include: ["src/**/*.test.ts"],
   },

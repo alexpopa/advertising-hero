@@ -55,7 +55,7 @@ Needs Node.js.
 
 ```bash
 npm install
-npm run dev       # the game at http://localhost:5173
+npm run dev       # the game at http://localhost:5174
 npm test          # 51 tests for the game rules
 npm run report    # how a few simple strategies do over 90 days, per product
 ```

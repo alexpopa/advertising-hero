@@ -38,7 +38,7 @@ Build order from DESIGN.md section 9:
 
 ```
 npm install
-npm run dev       # http://localhost:5173
+npm run dev       # http://localhost:5174
 npm test
 npm run build     # static site in dist/
 ```
