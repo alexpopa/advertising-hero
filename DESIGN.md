@@ -76,7 +76,7 @@ Every product has four kinds of place:
 
 A label can be a stockist and a competitor at once ("carries you, but sells rivals too"): sporting-goods stores for supplements, beauty stores for skincare, pet stores for pet food, bike shops for e-bikes. Its stockist weight is higher, so it helps a little overall. Some deliberate traps: juice bars look like gym-goers but compete with protein; cafés and coffee shops look like cold brew buyers but are rivals; laundromats look like laundry customers but compete; condos look like laundry customers but have in-unit washers (decoy); vegan restaurants compete with plant-based meal kits.
 
-Each product also has `who` (the one-line audience shown on every difficulty), `hints` (1–2 labels Normal mode tells you up front) and an icon and group for the menu.
+Each product also has `who` (the one-line audience shown on every difficulty), `hints` (1–2 labels Hard mode tells you up front) and an icon and group for the menu.
 
 | Group | Products |
 |---|---|
@@ -252,11 +252,11 @@ Playtest finding: with ad decay 0.9, a campaign on both channels at High reached
 - **Ad decay 0.93/day:** about 2/3 of full strength after 2 weeks and ~92% after 5 weeks; stopped ads fade over weeks. Reach scale is tied to the decay (`1.6 / (1 − decay)`) so each level's full-strength reach is unchanged.
 - **180 days** (six months), with days at 2 s instead of 3 s at 1×: about 6 minutes per run at 1×.
 - **Start cash $5,000** (was $3,000): the money-losing build-up now lasts weeks, and at $3,000 perfect play dipped to $0 and some runs went bankrupt. At $5,000 perfect play's lowest point across all 20 products is about $2,000, the same margin as before.
-- **Insights every 14 days of ads** per neighborhood (was 7), and Normal unlocks estimates at the same point. Events were briefly set to every 12–18 days, then removed (6.8).
+- **Insights every 14 days of ads** per neighborhood (was 7), and Hard unlocks estimates at the same point. Events were briefly set to every 12–18 days, then removed (6.8).
 
 Balance (median of 5 seeds, all 20 products): perfect play $75k–91k; Easy's top suggestion daily $63k–83k, lowest cash ≥ ~$2k; Medium out-of-home in the top 10 by score $42k–72k; Low or High everywhere bankrupt within a week; doing nothing bankrupt on day 44.
 
-### 6.15 A reason to make money: team, shops and monthly goals (2026-11-23)
+### 6.15 A reason to make money: team, shops and monthly goals (2026-11-23; goals removed the same day)
 
 **The problem.** Playtest: "great so far, but not fun". Money had nowhere to go. The only thing to buy was ads, and only 9–15 of 76 neighborhoods pay for any product, so once those ran at their best level, extra cash was just a score. The ceiling was fixed (perfect play tops out at a set profit per day) and since events were cut the world never changes, so the run was a puzzle solved in the first few weeks and then watched. Fun tycoon games turn money into something that raises what you can earn, and set a target that keeps rising. This adds both.
 
@@ -277,11 +277,11 @@ Medium is where most of the money is; High rarely pays (6.11), so lead buyers ar
 
 **Separate levels per channel.** With buyers per channel, one level shared by both channels made no sense (a senior digital buyer alone couldn't run "Medium" if out-of-home was ticked). Each zone now has a level per channel, 16 plans in all, and the estimates, suggestions and calibration cover all of them. Mixed plans like Medium out-of-home + Low digital are the best plan in some zones (a test checks).
 
-**Shops.** Open your own shop in any neighborhood: $8,000 for the first, ×1.6 for each one after; rent $20 + $60 × busyness per day. A shop works like a Low out-of-home ad that never stops (walk-ins, spills over like one) and raises that zone's sales by 40% (a store that carries you, that you own). It needs no buyer. Most products have one standout neighborhood for a shop (+$90–150/day after rent on Easy's estimate) and a few marginal ones, so finding it is the decision. Tuned down from $4,000 and +50%, when a perfect bot opened four shops by day 86.
+**Shops** (reworked 2026-11-23, see 6.16). Originally: open your own shop in any neighborhood: $8,000 for the first, ×1.6 for each one after; rent $20 + $60 × busyness per day. A shop works like a Low out-of-home ad that never stops (walk-ins, spills over like one) and raises that zone's sales by 40% (a store that carries you, that you own). It needs no buyer. Most products have one standout neighborhood for a shop (+$90–150/day after rent on Easy's estimate) and a few marginal ones, so finding it is the decision. Tuned down from $4,000 and +50%, when a perfect bot opened four shops by day 86.
 
-**Monthly goals.** Each 30-day month has a goal for average profit per day: $25, $150, $250, $320, $370, $400. Hires and shops are investments and don't count against it. Meeting it earns a ★ and a bonus of 10 days of the goal (at least $250). Missing one costs nothing (soft goals). The run ends with a rating out of 6 stars, so final cash finally reads as good or bad.
+**Monthly goals (removed 2026-11-23).** Playtest: "doesn't make any sense". The targets were numbers from a bot's run with no link to anything on the map, and the stars added a second scoreboard next to cash. Cut from the engine, the UI and the save. What they did: each 30-day month has a goal for average profit per day: $25, $150, $250, $320, $370, $400. Hires and shops are investments and don't count against it. Meeting it earns a ★ and a bonus of 10 days of the goal (at least $250). Missing one costs nothing (soft goals). The run ends with a rating out of 6 stars, so final cash finally reads as good or bad.
 
-**Where it lives on screen.** A floating bubble top left shows the stars, this month's average against the goal, and a green dot when you can afford a hire or a shop; click it for the goals, both hiring ladders (Easy shows what each hire adds per day at best) and your shops. Open a shop from a neighborhood's card. Locked levels show 🔒 and who to hire.
+**Where it lives on screen.** A floating "Team" bubble top left shows how many people you have, your shops, and a green dot when you can afford a hire or a shop; click it for both hiring ladders (avatars per hire, L/M/H pips, the next hire with a Hire button that fills up as you save) (Easy shows what each hire adds per day at best) and your shops. Open a shop from a neighborhood's card. Locked levels show 🔒 and who to hire.
 
 **Balance** (`npm run report`, starting alone, median of 5 seeds, 20 products). Bots use Easy's estimates, so they are upper bounds on a human:
 
@@ -293,15 +293,37 @@ Medium is where most of the money is; High rarely pays (6.11), so lead buyers ar
 
 Signing fees were doubled from a first try ($1,500–2,500), when the grower had bought everything by month 3 and cash piled up again. Now purchases spread to around day 120. One product (pet food) bankrupts the "grow" bot: it hires an out-of-home buyer on day 0 and switches on every profitable zone at once with $2,500 left. A human can do the same; the end screen's tip names it.
 
-Not yet: a late-game money sink once everything is bought (more shops only help where they pay), and a playtest by hand on Normal/Hard to check that the goals feel reachable for a person, not just a bot.
+Not yet: a late-game money sink once everything is bought (more shops only help where they pay), and a playtest by hand on Hard.
 
 ### 6.13 What the player knows (difficulty, 2026-11-22)
 
 - **Easy:** every place type's role is listed ("What you know" tab), the fit-score map layer, suggestions, and each neighborhood's score and estimates.
-- **Normal:** the audience line plus the product's `hints`. A neighborhood's score and estimates unlock after 14 days of ads there (7 until 2026-11-23).
-- **Hard:** the audience line only; never any estimates, only real results. (Previously Hard still showed every neighborhood's score on click, which gave the answer away; see STATUS open questions.)
+- **Hard** (the default; called Normal until 2026-11-23): the audience line plus the product's `hints`. A neighborhood's score and estimates unlock after 14 days of ads there (7 until 2026-11-23).
+- The old **Hard** (audience line only, never any estimates) was removed on 2026-11-23: with so little to go on it was guessing more than deduction. Saved games on it carry on as Hard.
 
-On Normal and Hard, the 7th day of ads in a neighborhood teaches one thing: the unknown place type with the most influence there (customer weight × density percentile; stockist or competitor weight × presence, saturating at 3 places; decoys at 0.2, so they come last and are revealed as "don't seem to matter"). A toast and the "What you know" tab say what it means, in plain English. Explanations in the zone panel only name place types the player knows, plus a count of how many more could matter.
+On Hard, the 7th day of ads in a neighborhood teaches one thing: the unknown place type with the most influence there (customer weight × density percentile; stockist or competitor weight × presence, saturating at 3 places; decoys at 0.2, so they come last and are revealed as "don't seem to matter"). A toast and the "What you know" tab say what it means, in plain English. Explanations in the zone panel only name place types the player knows, plus a count of how many more could matter.
+
+### 6.16 Believable money, shops priced by place (2026-11-23)
+
+**Every dollar ×10.** Playtest: "$25/day salaries" and a "$5,000 company" didn't read as real. Start cash $50,000, campaign fees $150/$100 a day, base running cost $400/day, hires $25k–60k to sign and $200–400/day (a $350/day salary is ~$128k a year), and the money-scale target `perfectDailyProfit` $3,000. The engine already calibrates ad prices and customers together against that target, so customers rose ×10 too and every ratio, best level and bot result is unchanged in shape (checked with `npm run report`: the same curves ×10). Order values are untouched: they're real-world prices. Saved games (version 5) are migrated by multiplying every money and customer figure by 10.
+
+**Shops priced by neighborhood, several per neighborhood.** Playtest: "shops should not cost the same per location; you should be able to open more than one per region; multiple ones might lose you money". Now:
+- Opening cost = $70,000 × (0.6 + 0.8 × busyness): about $42k in a quiet area to $98k downtown (fit-out and deposit). No more "each shop costs more than the last".
+- Rent = $100 + $200 × busyness per day ($3k–9k a month), per shop.
+- Up to 3 shops per neighborhood. Each extra one adds half what the previous one added (walk-ins and the sales boost both stack 1, 1.5, 1.75) but pays full rent and full price.
+- One shop: walk-ins like 1.2× a Low out-of-home ad that never stops, and sales potential ×1.8 there.
+
+Tuning (an ad-hoc script over all 20 products with a mid-sized team): the old numbers ×10 ($80k, rent $200–800) paid back within the run in almost no neighborhood, because a good neighborhood makes only a few hundred dollars a day. Several settings were tried (`npm run report` plus the payback check); the chosen one gives, per product, a median of ~5 neighborhoods where a first shop pays back within 180 days, a first shop losing money in ~3/4 of neighborhoods, and a second shop in a top-5 spot paying back within 90 days only ~7% of the time. A stronger setting (boost 1.0) let the perfect growth bot more than double its late-game profit with shops alone; this one adds ~40% ($5k → $7k/day by month 4–6). Easy shows each shop's expected gain per day; Hard leaves it to you.
+
+### 6.17 Two build-up speeds, and a "building up" hint (2026-11-23)
+
+Playtest: following every Easy suggestion still lost ~$1,000/day at day 12, and switching everything from Low to Medium went negative again. Both were the build-up (6.14): cost arrives at once, awareness over weeks. That's realistic for TV and outdoor (adstock half-lives of one to a few weeks are typical), but not for targeted digital, which converts within days and stops soon after spend stops.
+
+- **Digital decays at 0.8/day** (half-life ~3 days, ~90% of full strength in 10 days); out-of-home stays at 0.93 (half-life ~10 days). Each day's digital pressure is scaled by (1 − 0.8)/(1 − 0.93) so full-strength reach per level is unchanged: every estimate, best plan and score is the same; only the path there differs. Old saves keep their pressure values (same units).
+- Effect (`npm run report`, 20 products): a bot that stays alone on Low digital makes a median $820/day in month 1 (was $61); the growth bots end ~15–20% richer and no longer go bankrupt in any run (5 before). Out-of-home keeps its own advantages: spillover into neighbors, strength in busy areas and near stockists, and awareness that lingers after you stop.
+- **Easy: ↗ in the top bar** next to yesterday's profit while any campaign is below 95% of its full-strength reach, showing profit per day once everything has built up (after running costs). The launch tray's expected profit now also subtracts running costs, so the two numbers agree.
+
+Open: month 1 is now much gentler than the "first month is a squeeze" intent of 6.1/6.14. Check on Hard by hand whether it's now too easy.
 
 ## 7. Data pipeline (in the repo)
 

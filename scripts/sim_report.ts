@@ -1,7 +1,7 @@
 /**
  * A quick look at the economy: per product, the best and worst zones, what a few simple ad
  * plans earn with the whole team hired from day 1, and how three growth strategies do when
- * you start alone (hires, shops, monthly goals). A sanity check, not a full balance script.
+ * you start alone (hires, shops). A sanity check, not a full balance script.
  *
  * Usage: npm run report [-- product_key]
  */
@@ -28,7 +28,9 @@ import {
   hireGain,
   nextHire,
   shopCost,
-  shopGain,
+  shopsIn,
+  canAddShop,
+  shopPayback,
   type ZoneData,
 } from "../src/sim/index";
 
@@ -72,7 +74,7 @@ function play(w: World, plan: Strategy, seed: number, alone = false): GameState 
  */
 const runBest = (w: World, s: GameState): Action[] =>
   w.zones.flatMap((z) => {
-    const p = bestAllowed(w, s.staff, z.index, s.shops.includes(z.index)).plan;
+    const p = bestAllowed(w, s.staff, z.index, shopsIn(s, z.index)).plan;
     const now = s.plans[z.index];
     return p.ooh === now.ooh && p.digital === now.digital ? [] : apply(z.index, p);
   });
@@ -87,10 +89,12 @@ const grow = (cushion: number, onlyIfGain: boolean): Strategy => (w, s) => {
     acts.push({ type: "hire", channel: pick.ch });
     cash -= pick.h!.signing;
   } else if (!pick || !onlyIfGain) {
+    // The shop that pays back fastest, if it pays back before the run ends.
+    const left = C.days - s.day;
     const z = [...w.zones]
-      .filter((z) => !s.shops.includes(z.index))
-      .sort((a, b) => shopGain(w, s, b.index) - shopGain(w, s, a.index))[0];
-    if (z && shopGain(w, s, z.index) > 0 && cash - shopCost(s) >= cushion) acts.push({ type: "openShop", zone: z.index });
+      .filter((z) => canAddShop(s, z.index) && (shopPayback(w, s, z.index) ?? Infinity) < left)
+      .sort((a, b) => shopPayback(w, s, a.index)! - shopPayback(w, s, b.index)!)[0];
+    if (z && cash - shopCost(w, z.index) >= cushion) acts.push({ type: "openShop", zone: z.index });
   }
   // Plans are set after the purchases in step; pick them for the staff after this day's hire.
   const after = { ...s, staff: acts[0]?.type === "hire" ? { ...s.staff, [acts[0].channel]: s.staff[acts[0].channel] + 1 } : s.staff, shops: acts[0]?.type === "openShop" ? [...s.shops, acts[0].zone] : s.shops };
@@ -98,12 +102,12 @@ const grow = (cushion: number, onlyIfGain: boolean): Strategy => (w, s) => {
 };
 const growth: Record<string, Strategy> = {
   "Stay alone (best digital Low plans)": (w, s) => runBest(w, s),
-  "Grow when it pays, keep $1,500 spare": grow(1500, true),
+  "Grow when it pays, keep $15,000 spare": grow(15000, true),
   "Buy everything as soon as possible": grow(0, false),
 };
 
 const only = process.argv[2];
-const summary: Record<string, { cash: number[]; stars: number[]; bankrupt: number; months: number[][] }> = {};
+const summary: Record<string, { cash: number[]; bankrupt: number; months: number[][] }> = {};
 for (const key of Object.keys(cats.products)) {
   if (only && key !== only) continue;
   const w = buildWorld(zones, cats, key);
@@ -147,7 +151,6 @@ for (const key of Object.keys(cats.products)) {
   for (const [name, plan] of Object.entries(growth)) {
     const runs = [1, 2, 3, 4, 5].map((seed) => play(w, plan, seed, true));
     const mid = runs.sort((a, b) => a.cash - b.cash)[2];
-    const stars = mid.goalsMet.map((m) => (m ? "★" : "☆")).join("");
     const buys = mid.purchases
       .map((p) => (p.kind === "shop" ? `shop d${p.day}` : `${p.channel === "ooh" ? "O" : "D"}${p.level} d${p.day}`))
       .join(" ");
@@ -155,24 +158,22 @@ for (const key of Object.keys(cats.products)) {
       const h = mid.history.slice((m - 1) * C.monthDays, m * C.monthDays);
       return h.length ? Math.round(h.reduce((a, x) => a + x.profit, 0) / h.length) : NaN;
     });
-    const sm = (summary[name] ??= { cash: [], stars: [], bankrupt: 0, months: [] });
+    const sm = (summary[name] ??= { cash: [], bankrupt: 0, months: [] });
     sm.months.push(months);
     sm.cash.push(mid.cash);
-    sm.stars.push(mid.goalsMet.filter(Boolean).length);
     sm.bankrupt += runs.filter((r) => r.status === "bankrupt").length;
     console.log(
-      `  ${name.padEnd(38)} end ${usd(mid.cash).padStart(8)} ${stars.padEnd(6)} avg/day by month ${months.join(" ")}  | ${buys}` +
+      `  ${name.padEnd(38)} end ${usd(mid.cash).padStart(8)} avg/day by month ${months.join(" ")}  | ${buys}` +
         (mid.status === "bankrupt" ? ` BANKRUPT day ${mid.day}` : ""),
     );
   }
 }
 if (!only) {
-  console.log(`\nGrowth summary over ${Object.keys(cats.products).length} products (goals ${C.goals.join(", ")} $/day):`);
+  console.log(`\nGrowth summary over ${Object.keys(cats.products).length} products:`);
   for (const [name, sm] of Object.entries(summary)) {
     const med = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
-    const starCount = [0, 1, 2, 3, 4, 5, 6].map((k) => sm.stars.filter((x) => x === k).length);
     console.log(
-      `  ${name.padEnd(38)} median end ${usd(med(sm.cash))}, stars (0-6) ${starCount.join("/")}, bankrupt runs ${sm.bankrupt}`,
+      `  ${name.padEnd(38)} median end ${usd(med(sm.cash))}, bankrupt runs ${sm.bankrupt}`,
     );
     const q = (m: number, f: number) => {
       const v = sm.months.map((x) => x[m]).filter((x) => !Number.isNaN(x)).sort((a, b) => a - b);

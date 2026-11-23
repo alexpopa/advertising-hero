@@ -12,6 +12,11 @@ export {
   clampPlan,
   shopRent,
   shopCost,
+  shopsIn,
+  shopCounts,
+  shopStrength,
+  canAddShop,
+  shopPayback,
   totalRent,
   fixedCosts,
   hire,
@@ -22,9 +27,6 @@ export {
   potentialProfit,
   hireGain,
   shopGain,
-  monthGoal,
-  goalBonus,
-  monthProgress,
   type HireOffer,
 } from "./team";
 export { recommend, type Recommendation } from "./recommend";

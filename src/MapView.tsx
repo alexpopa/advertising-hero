@@ -313,15 +313,17 @@ export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOp
     (map.current!.getSource("badges") as GeoJSONSource).setData(badges);
   }, [ready, geojson, world, levels, paint]);
 
-  // A storefront pin for each of your shops, just above the zone's ad badge.
+  // A storefront pin per zone with your shops, just above the zone's ad badge (×2, ×3).
   const shopKey = (shops ?? []).join(",");
   useEffect(() => {
     if (!ready || !shops?.length) return;
-    const markers = shops.map((zone) => {
+    const counts = new Map<number, number>();
+    for (const z of shops) counts.set(z, (counts.get(z) ?? 0) + 1);
+    const markers = [...counts].map(([zone, n]) => {
       const el = document.createElement("div");
       el.className = "shop-pin";
-      el.textContent = "🏪";
-      el.title = `Your shop in ${world.zones[zone].name}`;
+      el.textContent = n > 1 ? `🏪×${n}` : "🏪";
+      el.title = n > 1 ? `Your ${n} shops in ${world.zones[zone].name}` : `Your shop in ${world.zones[zone].name}`;
       el.setAttribute("aria-label", el.title);
       return new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -12] })
         .setLngLat(world.zones[zone].data.center)

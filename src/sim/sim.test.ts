@@ -15,12 +15,12 @@ import {
   openShop,
   shopCost,
   shopRent,
+  shopsIn,
+  shopGain,
   salaries,
   estimateAt,
   nextHire,
   allowed,
-  monthGoal,
-  goalBonus,
   hireGain,
   labelName,
   percentiles,
@@ -43,7 +43,7 @@ import {
 
 /**
  * Most tests check the ad economy itself, so they start with the whole team hired (every
- * channel and level open). Tests of the team, shops and goals use initGameAlone.
+ * channel and level open). Tests of the team and shops use initGameAlone.
  */
 const FULL_TEAM = { ooh: 3, digital: 3 } as const;
 const initGame: typeof initGameAlone = (w, seed, d) => ({ ...initGameAlone(w, seed, d), staff: { ...FULL_TEAM } });
@@ -159,7 +159,7 @@ describe("game", () => {
     expect(s.day).toBe(0);
     expect(s.plans.every((p) => !isOn(p))).toBe(true);
     expect(s.difficulty).toBe("hard");
-    expect(s.known).toEqual([]);
+    expect(s.known).toEqual(world.product.hints ?? []);
   });
 
   it("doing nothing just pays the fixed overhead", () => {
@@ -363,10 +363,30 @@ describe("stockists and ad formats", () => {
     const z = w.zones.find((x) => x.neighbors.length > 0)!;
     const s = step(w, initGame(w, 3), apply(z.index, { ooh: 2, digital: 2 }));
     expect(s.pressure[z.index]).toBeCloseTo(C.levelMult[2], 9);
-    expect(s.pressureDigital[z.index]).toBeCloseTo(C.levelMult[2], 9);
+    expect(s.pressureDigital[z.index]).toBeCloseTo(C.levelMult[2] * C.digitalPressureScale, 9);
     expect(s.pressure[z.neighbors[0]]).toBeGreaterThan(0);
     expect(s.pressureDigital[z.neighbors[0]]).toBe(0);
     expect(awareness(s, z.index)).toBeGreaterThan(awareness({ ...s, pressureDigital: s.pressureDigital.map(() => 0) }, z.index));
+  });
+
+  it("digital builds and fades faster than out-of-home, to the same full strength", () => {
+    const w = buildWorld(ZONES, CATS, "pet_food");
+    const z = w.zones.find((x) => x.neighbors.length > 0)!;
+    const share = (s: ReturnType<typeof initGame>) => [
+      reach(s.pressure[z.index]) / reach(steadyPressure(2)),
+      reach(s.pressureDigital[z.index]) / reach(steadyPressure(2)),
+    ];
+    const on = run(w, { ...initGame(w, 3), cash: 1e9 }, 10, apply(z.index, { ooh: 2, digital: 2 }));
+    const [ooh10, dig10] = share(on);
+    expect(dig10).toBeGreaterThan(0.85);
+    expect(ooh10).toBeLessThan(0.75);
+    // Same full strength once both have built up.
+    const full = run(w, on, 100);
+    expect(reach(full.pressureDigital[z.index])).toBeCloseTo(reach(steadyPressure(2)), 3);
+    // Stopping: digital is mostly gone after 10 days, out-of-home lingers.
+    const off = run(w, full, 10, apply(z.index, { ooh: 0, digital: 0 }));
+    const [oohOff, digOff] = [reach(off.pressure[z.index]) / reach(full.pressure[z.index]), reach(off.pressureDigital[z.index]) / reach(full.pressureDigital[z.index])];
+    expect(digOff).toBeLessThan(oohOff);
   });
 
   it("the sim charges what the estimate says", () => {
@@ -383,15 +403,15 @@ describe("stockists and ad formats", () => {
 describe("insights (what the player knows)", () => {
   const w = buildWorld(ZONES, CATS, "supplements");
 
-  it("Easy knows everything, Normal starts with the hints, Hard with nothing", () => {
+  it("Easy knows everything, Hard starts with the hints", () => {
     expect(initGame(w, 1, "easy").known.sort()).toEqual(productLabels(w.product).sort());
-    expect(initGame(w, 1, "normal").known).toEqual(w.product.hints);
-    expect(initGame(w, 1, "hard").known).toEqual([]);
+    expect(initGame(w, 1, "hard").known).toEqual(w.product.hints);
   });
 
   it("a week of ads in a neighborhood teaches one thing", () => {
     const z = [...w.zones].sort((a, b) => b.data.nAll - a.data.nAll)[0];
-    const s6 = run(w, initGame(w, 2, "hard"), C.insightDays - 1, [ooh(z.index, 1)]);
+    const s0 = { ...initGame(w, 2, "hard"), known: [] };
+    const s6 = run(w, s0, C.insightDays - 1, [ooh(z.index, 1)]);
     expect(s6.known).toHaveLength(0);
     const s7 = step(w, s6);
     expect(s7.known).toHaveLength(1);
@@ -461,7 +481,7 @@ describe("explanations", () => {
   });
 });
 
-describe("team, shops and goals (DESIGN.md 6.15)", () => {
+describe("team and shops (DESIGN.md 6.15)", () => {
   const w = buildWorld(ZONES, CATS, "supplements");
   const best = [...w.zones].sort((a, b) => b.bestProfit - a.bestProfit)[0];
 
@@ -506,7 +526,7 @@ describe("team, shops and goals (DESIGN.md 6.15)", () => {
   });
 
   it("the whole team's salaries add up to the ladder in the constants", () => {
-    expect(salaries({ ooh: 3, digital: 3 })).toBe(25 + 40 + 20 + 35 + 20);
+    expect(salaries({ ooh: 3, digital: 3 })).toBe(250 + 400 + 200 + 350 + 200);
   });
 
   it("hire actions work inside step too", () => {
@@ -515,20 +535,43 @@ describe("team, shops and goals (DESIGN.md 6.15)", () => {
     expect(s.plans[best.index]).toEqual({ ooh: 1, digital: 1 });
   });
 
-  it("a shop costs more each time, can't be opened twice, and rent follows busyness", () => {
-    let s = { ...initGameAlone(w, 1), cash: 1e6 };
-    const first = shopCost(s);
-    s = openShop(s, best.index);
-    expect(s.cash).toBe(1e6 - first);
-    expect(shopCost(s)).toBeGreaterThan(first);
-    expect(openShop(s, best.index)).toBe(s);
+  it("shop price and rent follow busyness, and a zone takes up to the max", () => {
     const byBusy = [...w.zones].sort((a, b) => a.busyness - b.busyness);
-    expect(shopRent(w, byBusy[byBusy.length - 1].index)).toBeGreaterThan(shopRent(w, byBusy[0].index));
-    expect(fixedCosts(w, s)).toBeCloseTo(C.fixedOverhead + shopRent(w, best.index), 9);
+    const [quiet, busy] = [byBusy[0].index, byBusy[byBusy.length - 1].index];
+    expect(shopCost(w, busy)).toBeGreaterThan(shopCost(w, quiet));
+    expect(shopRent(w, busy)).toBeGreaterThan(shopRent(w, quiet));
+    let s = { ...initGameAlone(w, 1), cash: 1e7 };
+    for (let k = 1; k <= C.shop.maxPerZone; k++) {
+      const before = s.cash;
+      s = openShop(w, s, best.index);
+      expect(shopsIn(s, best.index)).toBe(k);
+      // The same price every time in the same place.
+      expect(s.cash).toBe(before - shopCost(w, best.index));
+    }
+    expect(openShop(w, s, best.index)).toBe(s);
+    expect(fixedCosts(w, s)).toBeCloseTo(C.fixedOverhead + C.shop.maxPerZone * shopRent(w, best.index), 9);
+  });
+
+  it("each extra shop in a zone adds less than the one before", () => {
+    const c = [0, 1, 2, 3].map((n) => estimateAt(w, best.index, OFF, n).customers);
+    expect(c[1] - c[0]).toBeGreaterThan(c[2] - c[1]);
+    expect(c[2] - c[1]).toBeGreaterThan(c[3] - c[2]);
+    expect(c[3] - c[2]).toBeGreaterThan(0);
+  });
+
+  it("a first shop pays in some neighborhoods and loses money in most", () => {
+    const s = { ...initGameAlone(w, 1), staff: { ooh: 2, digital: 2 } as const };
+    const gains = w.zones.map((z) => shopGain(w, s, z.index));
+    const paying = gains.filter((g) => g > 0).length;
+    expect(paying).toBeGreaterThan(0);
+    expect(paying).toBeLessThan(w.zones.length / 2);
+    // A second shop in the best spot adds less than the first did.
+    const top = w.zones[gains.indexOf(Math.max(...gains))].index;
+    expect(shopGain(w, { ...s, shops: [top] }, top)).toBeLessThan(gains[top]);
   });
 
   it("a shop brings walk-in customers with no ads, close to its estimate", () => {
-    let s = openShop({ ...initGameAlone(w, 1), cash: 1e6 }, best.index);
+    let s = openShop(w, { ...initGameAlone(w, 1), cash: 1e6 }, best.index);
     s = run(w, s, 120);
     expect(s.lastDay.customers[best.index]).toBeGreaterThan(0);
     // Average over the next 30 days, compared with the steady-state estimate.
@@ -538,42 +581,14 @@ describe("team, shops and goals (DESIGN.md 6.15)", () => {
       t = step(w, t);
       sum += t.lastDay.customers[best.index];
     }
-    const est = estimateAt(w, best.index, OFF, true).customers;
+    const est = estimateAt(w, best.index, OFF, 1).customers;
     expect(sum / 30).toBeGreaterThan(est * 0.9);
     expect(sum / 30).toBeLessThan(est * 1.15);
   });
 
   it("a shop makes ads there stronger than the same ads without it", () => {
     const plan: Plan = { ooh: 0, digital: 2 };
-    expect(estimateAt(w, best.index, plan, true).customers).toBeGreaterThan(estimateAt(w, best.index, plan, false).customers);
-  });
-
-  it("each month ends with a goal check: a star and bonus cash if met", () => {
-    const rich = { ...initGameAlone(w, 1), cash: 1e6 };
-    let s = run(w, rich, C.monthDays - 1);
-    expect(s.goalsMet).toEqual([]);
-    const before = s.cash;
-    s = step(w, s);
-    expect(s.goalsMet).toHaveLength(1);
-    // Doing nothing loses the fixed overhead every day, so even the first goal is missed.
-    expect(monthGoal(0)).toBeGreaterThanOrEqual(0);
-    expect(s.goalsMet[0]).toBe(false);
-    expect(s.cash).toBeCloseTo(before - C.fixedOverhead, 6);
-    s = run(w, s, C.days - C.monthDays);
-    expect(s.goalsMet).toHaveLength(C.goals.length);
-  });
-
-  it("hitting a goal pays its bonus", () => {
-    // A hand-made month of high profits: the 30th day pays the bonus on top.
-    const s0 = { ...initGame(w, 1), cash: 1e6 };
-    let s = run(w, s0, 1, w.zones.flatMap((z) => apply(z.index, z.best)));
-    s = run(w, s, 58);
-    const before = s.cash;
-    s = step(w, s);
-    const avg = s.history.slice(-30).reduce((a, h) => a + h.profit, 0) / 30;
-    expect(avg).toBeGreaterThanOrEqual(monthGoal(1));
-    expect(s.goalsMet[1]).toBe(true);
-    expect(s.cash).toBeCloseTo(before + s.history[s.history.length - 1].profit + goalBonus(1), 6);
+    expect(estimateAt(w, best.index, plan, 1).customers).toBeGreaterThan(estimateAt(w, best.index, plan, 0).customers);
   });
 
   it("suggestions never offer something your team can't buy", () => {

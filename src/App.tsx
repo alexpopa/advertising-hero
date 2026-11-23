@@ -108,10 +108,11 @@ export function App() {
   const onHire = useCallback((ch: Channel) => setState((s) => hire(s, ch)), [setState]);
   const onOpenShop = useCallback(
     (zone: number) => {
+      if (!world) return;
       addPops([{ id: popId(), zone, kind: "added", text: "Shop opened", delay: 0 }]);
-      setState((s) => openShop(s, zone));
+      setState((s) => openShop(world, s, zone));
     },
-    [setState, addPops],
+    [world, setState, addPops],
   );
 
   // Escape closes the neighborhood card.

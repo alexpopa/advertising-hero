@@ -4,7 +4,7 @@
  */
 export const C = {
   /** Tight on purpose: the first month is a squeeze while ads build up. */
-  startCash: 5000,
+  startCash: 50000,
   /** Six months: long enough for campaigns to mature and be adjusted mid-run. */
   days: 180,
 
@@ -20,11 +20,14 @@ export const C = {
    */
   medianReturnAtMedium: 0.8,
   /**
+   * Dollar amounts were multiplied by 10 on 2026-11-23 (with customers scaled to match, so
+   * the balance didn't change): a $25/day salary or a $5,000 company didn't read as real.
+   *
    * 2. Money scale: ad prices and customers are scaled together (which doesn't change any
    *    zone's best level) so that a perfect player, running the best level in every
    *    profitable zone at full strength, makes this much profit per day.
    */
-  perfectDailyProfit: 300,
+  perfectDailyProfit: 3000,
   /** Potential multiplier = fitFloor + (1 - fitFloor) * fit^fitSharpness. */
   fitFloor: 0.05,
   fitSharpness: 2,
@@ -54,8 +57,8 @@ export const C = {
    *   person with no busy-area premium, times `price`. No spillover into neighbors.
    */
   formats: {
-    ooh: { price: 1, fee: 15, effMin: 0.6, effSpan: 0.9 },
-    digital: { price: 1, fee: 10, effMin: 0.4, effSpan: 0.8 },
+    ooh: { price: 1, fee: 150, effMin: 0.6, effSpan: 0.9 },
+    digital: { price: 1, fee: 100, effMin: 0.4, effSpan: 0.8 },
   },
 
   /** A neighborhood teaches you one thing after this many days of ads there (Normal and Hard). */
@@ -70,7 +73,7 @@ export const C = {
 
   /**
    * Flat cost per day for every running campaign (creative, setup, management), on top of
-   * the ad price; set per format above (out-of-home $15, digital $10). Without it,
+   * the ad price; set per format above (out-of-home $150, digital $100). Without it,
    * blanketing the city at Low nearly matched smart play, because weak zones are cheap and
    * lose only a few dollars each.
    */
@@ -84,6 +87,15 @@ export const C = {
    * the decisions happened in week 1.) Steady-state reach is set by reachScale below.
    */
   adDecay: 0.93,
+  /**
+   * Digital ads build and fade much faster (2026-11-23): targeted ads bring buyers within
+   * days and stop soon after you stop paying, while billboards build familiarity over
+   * weeks. At 0.8 digital reaches ~90% of full strength in 10 days (half-life ~3 days, vs ~10
+   * for out-of-home). Full-strength reach per level is the same for both channels: each
+   * day's digital ads are scaled by digitalPressureScale, so estimates don't change.
+   */
+  digitalDecay: 0.8,
+  digitalPressureScale: (1 - 0.8) / (1 - 0.93),
   /**
    * Share of each neighbor's ad intensity that spills into a zone. Zones have ~6 neighbors,
    * so this is kept small: at 0.15, blanketing the city at Low gave every zone nearly
@@ -111,12 +123,12 @@ export const C = {
    * (DESIGN.md 6.15). It was a flat $120 before the team existed, which bankrupted Hard
    * players before their first ads had built up.
    */
-  fixedOverhead: 40,
+  fixedOverhead: 400,
   /**
    * The overhead the money scale is calibrated against (see perfectDailyProfit). Kept at the
-   * old $120 so the per-zone economy didn't change when the team was added.
+   * old $1,200 (×10) so the per-zone economy didn't change when the team was added.
    */
-  calibrationOverhead: 120,
+  calibrationOverhead: 1200,
   variableOverhead: 0.1,
 
   /**
@@ -129,42 +141,42 @@ export const C = {
   hires: {
     ooh: [
       null,
-      { title: "Out-of-home buyer", signing: 2500, salary: 25 },
-      { title: "Senior out-of-home buyer", signing: 5000, salary: 40 },
-      { title: "Lead out-of-home buyer", signing: 6000, salary: 20 },
+      { title: "Out-of-home buyer", signing: 25000, salary: 250 },
+      { title: "Senior out-of-home buyer", signing: 50000, salary: 400 },
+      { title: "Lead out-of-home buyer", signing: 60000, salary: 200 },
     ],
     digital: [
       null,
       null,
-      { title: "Senior digital buyer", signing: 3000, salary: 35 },
-      { title: "Lead digital buyer", signing: 6000, salary: 20 },
+      { title: "Senior digital buyer", signing: 30000, salary: 350 },
+      { title: "Lead digital buyer", signing: 60000, salary: 200 },
     ],
   },
 
   /**
-   * Your own shop in a neighborhood: a one-off cost (each shop costs more than the last),
-   * rent per day that rises with how busy the neighborhood is, and two permanent effects
-   * there: walk-ins (the storefront works like a Low out-of-home ad that never stops, and
-   * spills over like one) and more sales (potential x (1 + boost), a store that carries you
-   * and that you own).
+   * Your own shops (DESIGN.md 6.15). Opening one costs `cost` x (costMin + costSpan x
+   * busyness): fit-out and deposit are dearer where it's busy. Rent per day rises the same
+   * way. Each shop has two permanent effects in its neighborhood: walk-ins (works like
+   * 1.2x a Low out-of-home ad that never stops, and spills over like one) and more sales
+   * (potential x (1 + boost)). Up to `maxPerZone` per neighborhood; each extra one there
+   * adds `stack` times what the previous one added but pays full rent, so a second shop
+   * rarely pays. Tuned (2026-11-23) so a first shop pays back within the run in
+   * ~5 neighborhoods per product and loses money in ~3/4 of them (DESIGN.md 6.15).
    */
   shop: {
-    cost: 8000,
-    costGrowth: 1.6,
-    rentMin: 20,
-    rentSpan: 60,
-    pressure: 1,
-    boost: 0.4,
+    cost: 70000,
+    costMin: 0.6,
+    costSpan: 0.8,
+    rentMin: 100,
+    rentSpan: 200,
+    pressure: 1.2,
+    boost: 0.8,
+    stack: 0.5,
+    maxPerZone: 3,
   },
 
-  /**
-   * Monthly goals: average profit per day over each 30-day month (before hires and shops,
-   * which are investments). Hitting one earns a star and a bonus of `goalBonusDays` days of
-   * the goal. Missing one costs nothing.
-   */
+  /** Days per month, for reports. */
   monthDays: 30,
-  goals: [25, 150, 250, 320, 370, 400],
-  goalBonusDays: 10,
 
   /** Game over after this many days in a row with cash below $0. */
   bankruptDays: 3,

@@ -17,11 +17,15 @@ import {
   adCost,
   estimateFor,
   isOn,
-  goalBonus,
   labelName,
-  monthProgress,
+  hiredOf,
   nextHire,
   shopCost,
+  shopsIn,
+  reach,
+  steadyPressure,
+  fixedCosts,
+  canAddShop,
   roleSentence,
   step,
   type Channel,
@@ -50,7 +54,6 @@ interface Toast {
   detail: string;
   zone: number;
   insight?: boolean;
-  goal?: boolean;
 }
 
 interface Props {
@@ -150,31 +153,6 @@ export function GameHud({
     setTimeout(() => setToasts((t) => t.filter((x) => !ids.includes(x.id))), 12000);
   }, [state.insights, world]);
 
-  // A toast at the end of each month: goal met (★ and bonus) or missed.
-  const seenGoals = useRef(state.goalsMet.length);
-  useEffect(() => {
-    const n = state.goalsMet.length;
-    if (n <= seenGoals.current) {
-      seenGoals.current = n;
-      return;
-    }
-    seenGoals.current = n;
-    const m = n - 1;
-    const met = state.goalsMet[m];
-    const start = m * C.monthDays;
-    const days = state.history.filter((h) => h.day > start && h.day <= start + C.monthDays);
-    const avg = days.reduce((a, h) => a + h.profit, 0) / Math.max(1, days.length);
-    const t: Toast = {
-      id: Math.random(),
-      zone: -1,
-      title: met ? `★ Month ${m + 1} goal met! +${usd(goalBonus(m))} bonus` : `Month ${m + 1} goal missed`,
-      detail: `Average ${usd(avg)}/day against ${usd(C.goals[m])}.`,
-      goal: true,
-    };
-    setToasts((all) => [...all, t].slice(-3));
-    setTimeout(() => setToasts((all) => all.filter((x) => x.id !== t.id)), 9000);
-  }, [state.goalsMet, state.history]);
-
   // Leads and orders pop up over the map each day. Only for a day that just passed, not on
   // load or after a reset, so reopening a saved game doesn't replay old sales.
   const prevState = useRef(state);
@@ -204,6 +182,7 @@ export function GameHud({
   };
 
   const yesterday = state.history[state.history.length - 1];
+  const target = easy && playing ? buildingTarget(world, state) : null;
   const campaignCount = state.plans.filter(isOn).length;
   const waitingToStart = playing && state.day === 0 && !running;
 
@@ -236,6 +215,12 @@ export function GameHud({
             <span className={"pill-stat small-stat " + (yesterday.profit >= 0 ? "pos" : "neg")} title="Profit yesterday">
               {yesterday.profit >= 0 ? "+" : ""}
               {usd(yesterday.profit)}/day
+            </span>
+          )}
+          {yesterday && target !== null && (
+            <span className="pill-stat small-stat building" title="Ads still building up: profit per day at full strength">
+              ↗ {target >= 0 ? "+" : ""}
+              {usd(target)}
             </span>
           )}
           <span className="pill-sep" />
@@ -317,10 +302,9 @@ export function GameHud({
           <h2>How to play</h2>
           <p>
             <b>Your buyers:</b> {world.product.who}.
-            {state.difficulty === "normal" && state.known.length > 0 && (
+            {!easy && state.known.length > 0 && (
               <> You know that {state.known.map((l) => labelName(l)).join(" and ")} matter. The rest is up to you.</>
             )}
-            {state.difficulty === "hard" && <> That's all you know.</>}
           </p>
           <ol>
             <li>
@@ -359,8 +343,8 @@ export function GameHud({
               permanent bet on one neighborhood: walk-ins and more sales there, plus rent.
             </li>
             <li>
-              <b>Press ▶ to start the clock.</b> Ads take about a month to build up and every campaign has a daily fee, so
-              don't buy everywhere. Each month has a profit goal: hit it for a ★ and bonus cash.
+              <b>Press ▶ to start the clock.</b> Digital ads build up in about a week, out-of-home over a month, and every campaign has a daily fee, so
+              don't buy everywhere.
             </li>
           </ol>
           <button
@@ -396,10 +380,9 @@ export function GameHud({
         {toasts.map((t) => (
           <button
             key={t.id}
-            className={"toast" + (t.insight ? " insight" : "") + (t.goal ? " goal" : "")}
+            className={"toast" + (t.insight ? " insight" : "")}
             onClick={() => {
               if (t.zone >= 0) select(t.zone);
-              else if (t.goal) setTeamOpen(true);
               setToasts((all) => all.filter((x) => x.id !== t.id));
             }}
           >
@@ -410,6 +393,27 @@ export function GameHud({
       </div>
     </>
   );
+}
+
+/**
+ * Easy only: while any campaign is still building up, the profit per day once everything
+ * reaches full strength (null when nothing is building).
+ */
+function buildingTarget(world: World, state: GameState): number | null {
+  let building = false;
+  let profit = 0;
+  for (const z of world.zones) {
+    const p = state.plans[z.index];
+    const shops = shopsIn(state, z.index);
+    if (!isOn(p) && !shops) continue;
+    if (
+      (p.ooh > 0 && reach(state.pressure[z.index]) < 0.95 * reach(steadyPressure(p.ooh))) ||
+      (p.digital > 0 && reach(state.pressureDigital[z.index]) < 0.95 * reach(steadyPressure(p.digital)))
+    )
+      building = true;
+    profit += estimateFor(world, state, z.index, p).profit;
+  }
+  return building ? profit - fixedCosts(world, state) : null;
 }
 
 /**
@@ -439,7 +443,7 @@ function PlanTray({
     state.difficulty === "easy"
       ? planned.reduce(
           (a, z) => a + estimateFor(world, state, z.index, state.plans[z.index]).profit,
-          0,
+          -fixedCosts(world, state),
         )
       : null;
   const n = planned.length;
@@ -480,7 +484,7 @@ function PlanTray({
         <span className="plan-total small">
           <b>{usd(cost)}</b>/day
           {est !== null && (
-            <span className={est >= 0 ? "pos" : "neg"} title="Expected profit per day once ads have built up">
+            <span className={est >= 0 ? "pos" : "neg"} title="Profit per day once ads have built up, after running costs">
               {" "}
               {est >= 0 ? "+" : ""}
               {usd(est)}
@@ -496,8 +500,8 @@ function PlanTray({
 }
 
 /**
- * Top left: this month's goal and how it's going, and the stars so far. A green dot shows
- * when you can afford a hire or a shop. Click to open your team, goals and shops.
+ * Top left: your team. Shows who you have and a green dot when you can afford a hire or a
+ * shop. Click to open the team card.
  */
 function TeamBubble({
   world,
@@ -512,7 +516,6 @@ function TeamBubble({
   onToggle: () => void;
   onHire: (channel: Channel) => void;
 }) {
-  const p = monthProgress(state);
   const playing = state.status === "playing";
   const canBuy =
     playing &&
@@ -520,27 +523,27 @@ function TeamBubble({
       const h = nextHire(state.staff, ch);
       return h && state.cash >= h.signing;
     }) ||
-      state.cash >= shopCost(state));
-  const onTrack = p.daysIn > 0 && p.avg >= p.goal;
+      world.zones.some((z) => canAddShop(state, z.index) && state.cash >= shopCost(world, z.index)));
+  const people = 1 + hiredOf(state.staff).length;
   return (
     <div className={"team-bubble" + (open ? " open" : "")}>
-      <button className="goal-chip" onClick={onToggle} aria-expanded={open} title="Team & goals">
-        <span aria-hidden>👥</span>
-        <span className="goal-stars" aria-label={`${state.goalsMet.filter(Boolean).length} stars`}>
-          {C.goals.map((_, m) => (state.goalsMet[m] ? "★" : "☆")).join("")}
+      <button className={"team-chip" + (canBuy ? " ready" : "")} onClick={onToggle} aria-expanded={open} title="Your team">
+        <span className="team-chip-icon" aria-hidden>
+          👥
         </span>
-        {playing && (
-          <span className="small">
-            <b className={p.daysIn === 0 ? "" : onTrack ? "pos" : "neg"}>{usd(p.avg)}</b>
-            <span className="muted"> / {usd(p.goal)}</span>
+        <span className="team-chip-text">
+          <b>Team</b>
+          <span className="small muted">
+            {people} {people === 1 ? "person" : "people"}
+            {state.shops.length > 0 && ` · ${state.shops.length} shop${state.shops.length === 1 ? "" : "s"}`}
           </span>
-        )}
+        </span>
         {canBuy && <span className="buy-dot" aria-label="You can afford a hire or a shop" />}
       </button>
       {open && (
         <div className="float-card team-card">
           <header className="team-head">
-            <b>Team &amp; goals</b>
+            <b>Your team</b>
             <button className="icon-btn" onClick={onToggle} aria-label="Close">
               ×
             </button>

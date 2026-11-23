@@ -47,6 +47,33 @@ function Key({ view }: { view: LayerView }) {
   );
 }
 
+/**
+ * The key inside the open panel: one horizontal ramp in a strip of fixed height at the
+ * bottom, so ticking a box never moves the list you're clicking in.
+ */
+function StripKey({ view }: { view: LayerView }) {
+  const bins = [...(view.noneBin ? [view.noneBin] : []), ...view.bins];
+  return (
+    <div className="strip-key" aria-label="Color key">
+      {bins.length ? (
+        <>
+          <div className="strip-title small">{view.title}</div>
+          <ol className="strip-ramp">
+            {bins.map((b) => (
+              <li key={b.label}>
+                <span style={{ background: b.color }} />
+                <small>{b.label}</small>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : (
+        <div className="muted small strip-empty">Tick a place type to color the map.</div>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   world: World;
   layer: MapLayer;
@@ -79,8 +106,6 @@ export function MapControl({ world, layer, view, onChange, allowFit }: Props) {
             </button>
           </header>
 
-          {showing && <Key view={view} />}
-
           {allowFit && (
             <label className={"fit-toggle" + (layer.kind === "fit" ? " on" : "")}>
               <input
@@ -97,15 +122,15 @@ export function MapControl({ world, layer, view, onChange, allowFit }: Props) {
 
           <div className="picked-row">
             <span className="muted small">
-              {picked.length
-                ? `${picked.length} selected, counted together`
-                : "Pick one or more kinds of places. Their counts per km² are added together."}
+              {picked.length ? `${picked.length} selected · counts added together` : "Pick one or more"}
             </span>
-            {layer.kind !== "none" && (
-              <button className="link small" onClick={() => onChange({ kind: "none" })}>
-                Clear
-              </button>
-            )}
+            <button
+              className="link small"
+              onClick={() => onChange({ kind: "none" })}
+              style={{ visibility: layer.kind !== "none" ? "visible" : "hidden" }}
+            >
+              Clear
+            </button>
           </div>
 
           <input
@@ -141,6 +166,7 @@ export function MapControl({ world, layer, view, onChange, allowFit }: Props) {
               );
             })}
           </div>
+          <StripKey view={view} />
           <p className="muted small">Place data © Overture Maps Foundation.</p>
         </div>
       )}

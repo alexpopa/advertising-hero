@@ -10,8 +10,7 @@ import type { Difficulty, ProductData, Role, World } from "./types";
 
 export function initialKnown(product: ProductData, difficulty: Difficulty): string[] {
   if (difficulty === "easy") return productLabels(product);
-  if (difficulty === "normal") return [...(product.hints ?? [])];
-  return [];
+  return [...(product.hints ?? [])];
 }
 
 /** How much a label shapes results in a zone, 0..1-ish; 0 when the zone has none. */

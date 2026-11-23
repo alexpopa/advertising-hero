@@ -48,7 +48,7 @@ export interface CategoriesData {
   layers?: { group: string; labels: string[] }[];
 }
 
-export type Difficulty = "easy" | "normal" | "hard";
+export type Difficulty = "easy" | "hard";
 
 /**
  * Ad channels, named as the industry does. Out-of-home (OOH: billboards, bus shelters,
@@ -200,7 +200,7 @@ export interface ZoneLedger {
 }
 
 export interface GameState {
-  version: 5;
+  version: 6;
   seed: number;
   rng: number;
   productKey: string;
@@ -221,12 +221,10 @@ export interface GameState {
   pressureDigital: number[];
   /** Which ad levels your team can buy. */
   staff: Staff;
-  /** Zones with your own shop, in the order opened. */
+  /** The zone of each of your shops, in the order opened (a zone appears once per shop there). */
   shops: number[];
   /** Hires and shops, in order. */
   purchases: Purchase[];
-  /** One entry per finished month: was its goal met? */
-  goalsMet: boolean[];
   daysBelowZero: number;
   status: "playing" | "finished" | "bankrupt";
   history: DayResult[];

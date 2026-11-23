@@ -21,7 +21,6 @@ export function EndScreen({ world, brand, state, onPlayAgain, onViewMap }: Props
     .map((z) => ({ z, profit: zoneTotalProfit(state, z.index) }))
     .sort((a, b) => b.profit - a.profit);
   const best = used.slice(0, 3);
-  const stars = state.goalsMet.filter(Boolean).length;
   const team = hiredOf(state.staff);
   const invested = state.purchases.reduce((a, p) => a + p.cost, 0);
   const earlyBuys = state.purchases.filter((p) => p.day <= 10).length;
@@ -34,13 +33,6 @@ export function EndScreen({ world, brand, state, onPlayAgain, onViewMap }: Props
           {world.product.name} · {DIFFICULTIES.find((d) => d.key === state.difficulty)?.name}
         </p>
         <h1>{bankrupt ? `${brand} went bankrupt on day ${state.day}` : `${brand} after ${C.days} days`}</h1>
-        <p className="end-stars" aria-label={`${stars} of ${C.goals.length} monthly goals met`}>
-          {C.goals.map((_, m) => (state.goalsMet[m] ? "★" : "☆")).join("")}
-          <span className="small muted">
-            {" "}
-            {stars} of {C.goals.length} monthly goals
-          </span>
-        </p>
         <p className="small">
           {team.length ? `Team: you + ${team.length} hire${team.length === 1 ? "" : "s"}` : "Team: just you"}
           {state.shops.length > 0 &&

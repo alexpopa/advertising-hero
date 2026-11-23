@@ -17,19 +17,14 @@ const TIER_HELP: Record<Tier, string> = {
 
 export const DIFFICULTIES: { key: Difficulty; name: string; text: string }[] = [
   {
-    key: "easy",
-    name: "Easy",
-    text: "Every clue is shown: which places draw your buyers, carry you or compete with you. The map shows where you fit, and you get suggestions.",
-  },
-  {
-    key: "normal",
-    name: "Normal",
+    key: "hard",
+    name: "Hard",
     text: "You know who your buyers are and one or two places that matter. Each neighborhood you advertise in for two weeks teaches you one more.",
   },
   {
-    key: "hard",
-    name: "Hard",
-    text: "Only a line about your buyers. Work everything else out from the map and your own results.",
+    key: "easy",
+    name: "Easy",
+    text: "Every clue is shown: which places draw your buyers, carry you or compete with you. The map shows where you fit, and you get suggestions.",
   },
 ];
 
@@ -191,7 +186,7 @@ export function Menu({ categories, saved, startNew, onStart, onContinue }: Props
                 <button key={d.key} className="choice" onClick={() => product && onStart(brand.trim(), product, d.key)}>
                   <b>
                     {d.name}
-                    {d.key === "normal" && <span className="tag">Recommended</span>}
+                    {d.key === "hard" && <span className="tag">Recommended</span>}
                   </b>
                   <span className="muted small">{d.text}</span>
                 </button>

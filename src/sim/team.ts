@@ -1,5 +1,5 @@
 /**
- * Growth (DESIGN.md 6.15): your team, your shops and the monthly goals. You start alone,
+ * Growth (DESIGN.md 6.15): your team, and your shops. You start alone,
  * able to buy digital ads at Low; each hire unlocks the next level of one channel. A shop is
  * a permanent bet on one neighborhood. Both are paid for from cash and can't be undone.
  */
@@ -64,14 +64,41 @@ export function clampPlan(staff: Staff, plan: Plan): Plan {
     : { ooh: Math.min(plan.ooh, staff.ooh) as Level, digital: Math.min(plan.digital, staff.digital) as Level };
 }
 
-/** Rent per day for a shop in a zone: busier neighborhoods cost more. */
+/** Rent per day for one shop in a zone: busier neighborhoods cost more. */
 export function shopRent(world: World, zone: number): number {
   return C.shop.rentMin + C.shop.rentSpan * world.zones[zone].busyness;
 }
 
-/** What your next shop costs to open. */
-export function shopCost(state: Pick<GameState, "shops">): number {
-  return Math.round(C.shop.cost * Math.pow(C.shop.costGrowth, state.shops.length));
+/** What opening a shop in this zone costs: dearer where it's busy. */
+export function shopCost(world: World, zone: number): number {
+  return Math.round((C.shop.cost * (C.shop.costMin + C.shop.costSpan * world.zones[zone].busyness)) / 1000) * 1000;
+}
+
+/** How many shops you have in a zone. */
+export function shopsIn(state: Pick<GameState, "shops">, zone: number): number {
+  let n = 0;
+  for (const z of state.shops) if (z === zone) n++;
+  return n;
+}
+
+/** Shops per zone, for every zone. */
+export function shopCounts(world: World, state: Pick<GameState, "shops">): number[] {
+  const n = new Array(world.zones.length).fill(0);
+  for (const z of state.shops) n[z]++;
+  return n;
+}
+
+/**
+ * The combined effect of `n` shops in one zone, in units of one shop: 1, 1.5, 1.75...
+ * Each extra shop adds `stack` times what the one before it added.
+ */
+export function shopStrength(n: number): number {
+  return n <= 0 ? 0 : (1 - Math.pow(C.shop.stack, n)) / (1 - C.shop.stack);
+}
+
+/** Can you open another shop here (ignoring cash)? */
+export function canAddShop(state: Pick<GameState, "shops">, zone: number): boolean {
+  return shopsIn(state, zone) < C.shop.maxPerZone;
 }
 
 /** Rent for every shop you have, per day. */
@@ -96,10 +123,10 @@ export function hire(state: GameState, channel: Channel): GameState {
   };
 }
 
-/** Open a shop in a zone, if you can afford it and don't have one there. */
-export function openShop(state: GameState, zone: number): GameState {
-  const cost = shopCost(state);
-  if (state.status !== "playing" || state.shops.includes(zone) || state.cash < cost) return state;
+/** Open a shop in a zone, if you can afford it and there's room for another there. */
+export function openShop(world: World, state: GameState, zone: number): GameState {
+  const cost = shopCost(world, zone);
+  if (state.status !== "playing" || !canAddShop(state, zone) || state.cash < cost) return state;
   return {
     ...state,
     cash: state.cash - cost,
@@ -109,24 +136,25 @@ export function openShop(state: GameState, zone: number): GameState {
 }
 
 /**
- * Steady-state estimate for a plan in a zone, with or without your shop there (ignoring
+ * Steady-state estimate for a plan in a zone with `shops` of your shops there (ignoring
  * brand, spillover and noise, like the zone's built-in estimates). Shop rent isn't included.
  */
-export function estimateAt(world: World, zone: number, plan: Plan, shop: boolean): Estimate {
+export function estimateAt(world: World, zone: number, plan: Plan, shops: number): Estimate {
   const z = world.zones[zone];
-  if (!shop) return z.est[plan.ooh][plan.digital];
+  if (shops <= 0) return z.est[plan.ooh][plan.digital];
+  const k = shopStrength(shops);
   const steady = (intensity: number) => intensity / (1 - C.adDecay);
-  const rOoh = reach(steady(C.levelMult[plan.ooh] + C.shop.pressure));
+  const rOoh = reach(steady(C.levelMult[plan.ooh] + C.shop.pressure * k));
   const rDigital = reach(steady(C.levelMult[plan.digital]));
-  const customers = z.pmax * (1 + C.shop.boost) * channelMix(z.formatEff, rOoh, rDigital);
+  const customers = z.pmax * (1 + C.shop.boost * k) * channelMix(z.formatEff, rOoh, rDigital);
   const cost = adCostPerDay({ ooh: z.price, digital: z.priceDigital }, plan);
   const unitMargin = world.product.orderValue * world.product.margin;
   return { customers, cost, profit: customers * unitMargin * (1 - C.variableOverhead) - cost };
 }
 
-/** The steady-state estimate for a plan in a zone, given whether you have a shop there. */
+/** The steady-state estimate for a plan in a zone, given your shops there. */
 export function estimateFor(world: World, state: Pick<GameState, "shops">, zone: number, plan: Plan): Estimate {
-  return estimateAt(world, zone, plan, state.shops.includes(zone));
+  return estimateAt(world, zone, plan, shopsIn(state, zone));
 }
 
 /** The most profitable plan your team can run in a zone (Off if nothing pays). */
@@ -134,12 +162,12 @@ export function bestAllowed(
   world: World,
   staff: Staff,
   zone: number,
-  shop: boolean,
+  shops: number,
 ): { plan: Plan; profit: number } {
-  let best = { plan: OFF, profit: estimateAt(world, zone, OFF, shop).profit };
+  let best = { plan: OFF, profit: estimateAt(world, zone, OFF, shops).profit };
   for (const plan of ALL_PLANS) {
     if (!allowed(staff, plan)) continue;
-    const profit = estimateAt(world, zone, plan, shop).profit;
+    const profit = estimateAt(world, zone, plan, shops).profit;
     if (profit > best.profit) best = { plan, profit };
   }
   return best;
@@ -148,7 +176,7 @@ export function bestAllowed(
 /** Steady-state profit per day if every zone ran its best allowed plan, after fixed costs. */
 export function potentialProfit(world: World, state: Pick<GameState, "staff" | "shops">): number {
   const zones = world.zones.reduce(
-    (a, z) => a + bestAllowed(world, state.staff, z.index, state.shops.includes(z.index)).profit,
+    (a, z) => a + bestAllowed(world, state.staff, z.index, shopsIn(state, z.index)).profit,
     0,
   );
   return zones - fixedCosts(world, state);
@@ -162,36 +190,21 @@ export function hireGain(world: World, state: Pick<GameState, "staff" | "shops">
   return potentialProfit(world, after) - potentialProfit(world, state);
 }
 
-/** How much a shop here would add to this zone's best profit per day, rent included (Easy mode). */
-export function shopGain(world: World, state: Pick<GameState, "staff">, zone: number): number {
+/**
+ * How much one more shop here would add to this zone's best profit per day, its rent
+ * included (Easy mode). Can be negative, especially for a second or third shop.
+ */
+export function shopGain(world: World, state: Pick<GameState, "staff" | "shops">, zone: number): number {
+  const n = shopsIn(state, zone);
   return (
-    bestAllowed(world, state.staff, zone, true).profit -
-    Math.max(0, bestAllowed(world, state.staff, zone, false).profit) -
+    bestAllowed(world, state.staff, zone, n + 1).profit -
+    Math.max(0, bestAllowed(world, state.staff, zone, n).profit) -
     shopRent(world, zone)
   );
 }
 
-/** Goal for a month (0-based), in average profit per day. */
-export function monthGoal(month: number): number {
-  return C.goals[Math.min(month, C.goals.length - 1)];
-}
-
-/** Bonus cash for hitting a month's goal. */
-export function goalBonus(month: number): number {
-  return Math.max(250, monthGoal(month) * C.goalBonusDays);
-}
-
-/** The month in progress: its goal and the average profit per day so far. */
-export function monthProgress(state: Pick<GameState, "day" | "history">): {
-  month: number;
-  goal: number;
-  daysIn: number;
-  avg: number;
-  daysLeft: number;
-} {
-  const month = Math.min(Math.floor(state.day / C.monthDays), C.goals.length - 1);
-  const start = month * C.monthDays;
-  const days = state.history.filter((h) => h.day > start && h.day <= start + C.monthDays);
-  const avg = days.length ? days.reduce((a, h) => a + h.profit, 0) / days.length : 0;
-  return { month, goal: monthGoal(month), daysIn: days.length, avg, daysLeft: C.monthDays - days.length };
+/** Days for one more shop here to pay back its opening cost, or null if it never does. */
+export function shopPayback(world: World, state: Pick<GameState, "staff" | "shops">, zone: number): number | null {
+  const g = shopGain(world, state, zone);
+  return g > 0 ? shopCost(world, zone) / g : null;
 }
