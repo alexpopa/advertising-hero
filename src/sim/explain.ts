@@ -18,7 +18,7 @@ export interface Explanation {
   stockLine: string | null;
   /** e.g. "Competition: only 2 juice bars" (null if no competitor is known yet) */
   competitionLine: string | null;
-  /** e.g. "Other place types matter too. A week of ads here will teach you one." */
+  /** e.g. "Other place types matter too. Two weeks of ads here will teach you one." */
   unknownLine: string | null;
   /** e.g. "Ads: cheaper than 70% of SF" */
   priceLine: string;
@@ -81,14 +81,14 @@ export function explain(world: World, zoneIndex: number, known?: string[]): Expl
 
   const unknown = known ? [...role.keys()].filter((l) => !known.includes(l)).length : 0;
   const unknownLine = unknown
-    ? `${unknown} more place type${unknown === 1 ? "" : "s"} could matter. A week of ads here will teach you one.`
+    ? `${unknown} more place type${unknown === 1 ? "" : "s"} could matter`
     : null;
 
   const cheaper = Math.round((1 - z.pricePct) * 100);
   const priceLine =
     cheaper >= 50 ? `Ads: cheaper than ${cheaper}% of SF` : `Ads: pricier than ${100 - cheaper}% of SF`;
 
-  const peopleLine = `About ${round(z.people).toLocaleString("en-US")} people live or work here (estimated from building floor space)`;
+  const peopleLine = `About ${round(z.people).toLocaleString("en-US")} people live or work here`;
 
   const topStock = knownStock.filter((p) => p.count > 0).sort((a, b) => b.count * b.weight - a.count * a.weight)[0];
   const summaryParts = [

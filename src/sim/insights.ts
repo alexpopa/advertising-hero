@@ -1,6 +1,6 @@
 /**
  * What the player knows about their product (DESIGN.md 6.13). Easy shows every signal;
- * Normal starts with the product's hints; Hard starts with only the audience line. A week
+ * Normal starts with the product's hints; Hard starts with only the audience line. Two weeks
  * of ads in a neighborhood teaches one new thing: the unknown place type that matters most
  * there (decoys come last, and are revealed as "doesn't matter").
  */
@@ -35,7 +35,7 @@ function influence(world: World, zone: number, label: string, role: Role): numbe
   }
 }
 
-/** The next thing a week of ads in this zone teaches, or null if there's nothing new here. */
+/** The next thing two weeks of ads in this zone teach, or null if there's nothing new here. */
 export function nextInsight(world: World, known: string[], zone: number): string | null {
   let best: string | null = null;
   let bestScore = 0;

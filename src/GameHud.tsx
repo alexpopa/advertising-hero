@@ -9,7 +9,12 @@ import { useEffect, useRef, useState } from "react";
 import { Campaigns, Events, Knowledge, Suggestions } from "./Lists";
 import {
   C,
+  CHANNEL_NAMES,
+  LEVEL_NAMES,
+  adCost,
+  channelsOf,
   describeEvent,
+  estimate,
   labelName,
   roleSentence,
   step,
@@ -18,10 +23,11 @@ import {
   type World,
 } from "./sim";
 import { usd } from "./scale";
+import { popsForDay, type Pop } from "./pops";
 import { hintsSeen, markHintsSeen } from "./storage";
 
 /** Real seconds per game day at 1x. */
-const SECONDS_PER_DAY = 3;
+const SECONDS_PER_DAY = 2;
 const SPEEDS = [1, 2, 4] as const;
 
 type Tab = "suggestions" | "campaigns" | "know" | "events";
@@ -51,9 +57,25 @@ interface Props {
   paused: boolean;
   onMenu: () => void;
   onResults: () => void;
+  /** Bubbles over the map for each day that passes (leads, orders). */
+  onPops?: (pops: Pop[]) => void;
+  /** Is the neighborhood card open? (On phones it covers the plan tray.) */
+  zoneOpen?: boolean;
 }
 
-export function GameHud({ world, brand, state, setState, setPlan, onSelect, paused, onMenu, onResults }: Props) {
+export function GameHud({
+  world,
+  brand,
+  state,
+  setState,
+  setPlan,
+  onSelect,
+  paused,
+  onMenu,
+  onResults,
+  onPops,
+  zoneOpen,
+}: Props) {
   const [running, setRunning] = useState(false);
   const [speedIx, setSpeedIx] = useState(0);
   const [tab, setTab] = useState<Tab | null>(null);
@@ -127,6 +149,29 @@ export function GameHud({ world, brand, state, setState, setPlan, onSelect, paus
     setTimeout(() => setToasts((t) => t.filter((x) => !ids.includes(x.id))), 12000);
   }, [state.insights, world]);
 
+  // Leads and orders pop up over the map each day. Only for a day that just passed, not on
+  // load or after a reset, so reopening a saved game doesn't replay old sales.
+  const prevState = useRef(state);
+  useEffect(() => {
+    const before = prevState.current;
+    prevState.current = state;
+    if (!onPops || state.day !== before.day + 1) return;
+    const pops = popsForDay(world, before, state, (SECONDS_PER_DAY * 1000) / speed);
+    onPops(pops);
+    const first = pops.find((p) => p.kind === "first");
+    if (first) {
+      const t: Toast = {
+        id: Math.random(),
+        zone: first.zone,
+        title: `🎉 First sale, in ${world.zones[first.zone].name}!`,
+        detail: "🙂 shows how many people noticed you, 🛍️ your orders. Most people who notice don't buy right away.",
+      };
+      setToasts((all) => [...all, t].slice(-3));
+      setTimeout(() => setToasts((all) => all.filter((x) => x.id !== t.id)), 9000);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.day]);
+
   const select = (z: number) => {
     onSelect(z);
     setTab(null);
@@ -194,9 +239,6 @@ export function GameHud({ world, brand, state, setState, setPlan, onSelect, paus
           )}
         </div>
 
-        {waitingToStart && !tab && !showHints && (
-          <div className="pill-hint">Click a neighborhood to buy ads, then press ▶</div>
-        )}
         {state.daysBelowZero > 0 && playing && !tab && (
           <div className="pill-hint neg-bg" role="alert">
             Cash below $0 for {state.daysBelowZero} of {C.bankruptDays} days. Cut losing campaigns.
@@ -265,7 +307,7 @@ export function GameHud({ world, brand, state, setState, setPlan, onSelect, paus
                 </>
               ) : (
                 <>
-                  <b>Click a neighborhood to buy ads.</b> After a week of ads there you learn one thing about your
+                  <b>Click a neighborhood to buy ads.</b> After two weeks of ads there you learn one thing about your
                   buyers (see <i>What you know</i> under your brand).
                 </>
               )}
@@ -278,7 +320,7 @@ export function GameHud({ world, brand, state, setState, setPlan, onSelect, paus
             <li>
               <b>Press ▶ to start the clock</b>, then watch profit per day and cut what's red. Running the business costs{" "}
               {usd(C.fixedOverhead)}/day, so you'll need several good neighborhoods. But every campaign has a{" "}
-              {usd(C.formats.ooh.fee)}/day fee and ads take about a week to build up, so don't buy everywhere.
+              {usd(C.formats.ooh.fee)}/day fee and ads take about a month to reach full strength, so don't buy everywhere.
             </li>
           </ol>
           <button
@@ -291,6 +333,23 @@ export function GameHud({ world, brand, state, setState, setPlan, onSelect, paus
             Got it
           </button>
         </div>
+      )}
+
+      {playing && !running && !paused && !showHints && (
+        <PlanTray
+          world={world}
+          state={state}
+          zoneOpen={!!zoneOpen}
+          onSelect={(z) => {
+            onSelect(z);
+            setTab(null);
+          }}
+          onRemove={(z) => setPlan(z, { level: 0 })}
+          onLaunch={() => {
+            setRunning(true);
+            onSelect(null);
+          }}
+        />
       )}
 
       <div className="toasts" aria-live="polite">
@@ -309,5 +368,85 @@ export function GameHud({ world, brand, state, setState, setPlan, onSelect, paus
         ))}
       </div>
     </>
+  );
+}
+
+/**
+ * "Your plan": shown whenever the clock is stopped. Lists every neighborhood you've set ads
+ * in (click to edit, × to remove), what it all costs, and one button to launch or resume.
+ * Before day 1 it explains that you can pick as many neighborhoods as you like first.
+ */
+function PlanTray({
+  world,
+  state,
+  zoneOpen,
+  onSelect,
+  onRemove,
+  onLaunch,
+}: {
+  world: World;
+  state: GameState;
+  zoneOpen: boolean;
+  onSelect: (zone: number) => void;
+  onRemove: (zone: number) => void;
+  onLaunch: () => void;
+}) {
+  const planned = world.zones.filter((z) => state.levels[z.index] > 0);
+  const fresh = state.day === 0;
+  const cost = planned.reduce((a, z) => a + adCost(world, state, z.index, state.levels[z.index]), 0);
+  const est =
+    state.difficulty === "easy"
+      ? planned.reduce(
+          (a, z) => a + estimate(z, { level: state.levels[z.index], format: state.formats[z.index] }).profit,
+          0,
+        )
+      : null;
+  const n = planned.length;
+
+  return (
+    <section className={"float-card plan-tray" + (zoneOpen ? " behind-panel" : "")} aria-label="Your plan">
+      {n === 0 ? (
+        <span className="plan-empty muted small">
+          {fresh ? "Click neighborhoods to plan ads, then launch them together" : "No campaigns running"}
+        </span>
+      ) : (
+        <ul className="plan-chips">
+          {planned.map((z) => {
+            const chans = channelsOf(state.formats[z.index]);
+            return (
+              <li key={z.index} className="plan-chip">
+                <button className="chip-main" onClick={() => onSelect(z.index)} title={`Edit ${z.name}`}>
+                  <span className="chip-level" aria-label={LEVEL_NAMES[state.levels[z.index]]}>
+                    {LEVEL_NAMES[state.levels[z.index]][0]}
+                  </span>
+                  <span className="chip-name">{z.name}</span>
+                  <span className="chip-chans" aria-label={chans.map((c) => CHANNEL_NAMES[c]).join(" and ")}>
+                    {chans.map((c) => (c === "ooh" ? "🪧" : "📱")).join("")}
+                  </span>
+                </button>
+                <button className="chip-x" onClick={() => onRemove(z.index)} aria-label={`Remove ${z.name}`}>
+                  ×
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {n > 0 && (
+        <span className="plan-total small">
+          <b>{usd(cost)}</b>/day
+          {est !== null && (
+            <span className={est >= 0 ? "pos" : "neg"} title="Expected profit per day once ads have built up">
+              {" "}
+              {est >= 0 ? "+" : ""}
+              {usd(est)}
+            </span>
+          )}
+        </span>
+      )}
+      <button className="btn btn-primary launch-btn" onClick={onLaunch} disabled={fresh && n === 0}>
+        ▶ {fresh ? (n === 0 ? "Launch" : `Launch ${n}`) : "Resume"}
+      </button>
+    </section>
   );
 }

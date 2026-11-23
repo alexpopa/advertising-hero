@@ -17,7 +17,7 @@
 - Ads bought per neighborhood at 4 levels (Off / Low / Medium / High).
 - Daily income, overhead, a bit of randomness, occasional events.
 - Two difficulty modes, chosen at the start, **Hard by default**. Easy adds top-5 recommendations (where to place ads, with plain-language reasons). Hard shows no recommendations; the player reads the map and works it out.
-- A 90-day run with an end-of-game summary. Progress saved in the browser.
+- A 180-day run (90 until 2026-11-23, see 6.14) with an end-of-game summary. Progress saved in the browser.
 
 **Cut (and why), to be repeated in the README**
 | Cut | Why |
@@ -165,12 +165,12 @@ Example zone: 15,000 people, Fit 0.7, compFactor 0.6, product with $25 order at 
 These constants are a starting point. The balance script (section 8) tunes them.
 
 ### 6.10 Tuning constants (all in `src/sim/constants.ts`)
-Start values from this design, and what they are after the first run on real data (2026-11-21, section 6.11).
+Start values from this design, and what they are after the first run on real data (2026-11-21, section 6.11) and the slower-campaigns change (2026-11-23, section 6.14).
 
 | Name | Start value | Now |
 |---|---|---|
-| startCash | $5,000 | **$3,000** |
-| days | 90 | 90 |
+| startCash | $5,000 | **$5,000** ($3,000 from 6.11 until 6.14) |
+| days | 90 | **180** (6.14) |
 | m² per person | 60 | 60 |
 | base purchase rate r | 0.002 | **calibrated per product** (6.11) |
 | fit effect | 0.2 + 0.8·Fit | **0.05 + 0.95·Fit²** |
@@ -179,8 +179,8 @@ Start values from this design, and what they are after the first run on real dat
 | c0 (ad price base) | $20 | $20 before the money scale (6.11) |
 | campaign fee | none | **$15/day per running campaign** |
 | level multipliers | 1, 2, 4 | 1, 2, 4 |
-| ad decay | 0.8/day | **0.9/day** |
-| reach scale | 8 | **16** (same steady reach: Low 46%, Medium 71%, High 92%) |
+| ad decay | 0.8/day | **0.93/day** (0.9 from 6.11 until 6.14) |
+| reach scale | 8 | **1.6 / (1 − decay) ≈ 22.9** (same steady reach: Low 46%, Medium 71%, High 92%) |
 | spillover | 0.15 of neighbor spend | **0.05 of each neighbor's ad intensity** |
 | brand bonus | 0.02/zone, cap 1.25 | **0.01/zone, cap 1.10** |
 | noise sd | 0.08 | 0.08 |
@@ -241,10 +241,21 @@ Tuning for (4): digital at 0.8× price won ~42% of neighborhoods alone and out-o
 
 Balance (median of 5 seeds, all 20 products): perfect play $37k–44k; Easy's top suggestion daily $30k–38k; Medium out-of-home ads in the top 10 by score $21k–35k; Low or High everywhere, out-of-home or digital, bankrupt within a week.
 
+### 6.14 Slower campaigns, longer run (2026-11-23)
+
+Playtest finding: with ad decay 0.9, a campaign on both channels at High reached ~90% awareness by day 6. Every real decision happened in week 1 and the rest of the 90 days was watching. Changes:
+
+- **Ad decay 0.93/day:** about 2/3 of full strength after 2 weeks and ~92% after 5 weeks; stopped ads fade over weeks. Reach scale is tied to the decay (`1.6 / (1 − decay)`) so each level's full-strength reach is unchanged.
+- **180 days** (six months), with days at 2 s instead of 3 s at 1×: about 6 minutes per run at 1×.
+- **Start cash $5,000** (was $3,000): the money-losing build-up now lasts weeks, and at $3,000 perfect play dipped to $0 and some runs went bankrupt. At $5,000 perfect play's lowest point across all 20 products is about $2,000, the same margin as before.
+- **Insights every 14 days of ads** per neighborhood (was 7), and Normal unlocks estimates at the same point. **Events every 12–18 days** (was 8–12).
+
+Balance (median of 5 seeds, all 20 products): perfect play $75k–91k; Easy's top suggestion daily $63k–83k, lowest cash ≥ ~$2k; Medium out-of-home in the top 10 by score $42k–72k; Low or High everywhere bankrupt within a week; doing nothing bankrupt on day 44.
+
 ### 6.13 What the player knows (difficulty, 2026-11-22)
 
 - **Easy:** every place type's role is listed ("What you know" tab), the fit-score map layer, suggestions, and each neighborhood's score and estimates.
-- **Normal:** the audience line plus the product's `hints`. A neighborhood's score and estimates unlock after 7 days of ads there.
+- **Normal:** the audience line plus the product's `hints`. A neighborhood's score and estimates unlock after 14 days of ads there (7 until 2026-11-23).
 - **Hard:** the audience line only; never any estimates, only real results. (Previously Hard still showed every neighborhood's score on click, which gave the answer away; see STATUS open questions.)
 
 On Normal and Hard, the 7th day of ads in a neighborhood teaches one thing: the unknown place type with the most influence there (customer weight × density percentile; stockist or competitor weight × presence, saturating at 3 places; decoys at 0.2, so they come last and are revealed as "don't seem to matter"). A toast and the "What you know" tab say what it means, in plain English. Explanations in the zone panel only name place types the player knows, plus a count of how many more could matter.

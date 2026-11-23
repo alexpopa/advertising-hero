@@ -4,7 +4,7 @@
  *
  * What it shows depends on the difficulty: Easy shows the score, the estimates and every
  * place type that matters. Normal shows only the place types you've learned, and unlocks
- * the score and estimates once you've advertised here for a week. Hard never shows
+ * the score and estimates once you've advertised here for two weeks. Hard never shows
  * estimates: only your real results.
  */
 import { useState } from "react";
@@ -87,13 +87,11 @@ export function ZonePanel({ world, zone, examples, onClose, state, onSetPlan }: 
       </header>
 
       {shown && (
-        <div className="score-row">
+        <div className="score-row" title="Return per ad dollar, ranked against the rest of SF">
           <span className="swatch" style={{ background: bin.color }} aria-hidden />
           <span className="score-num">{z.score}</span>
           <span>
             <b>{bin.label}</b> for {world.product.name.toLowerCase()}
-            <br />
-            <span className="muted small">Return per ad dollar, ranked against the rest of SF</span>
           </span>
         </div>
       )}
@@ -109,10 +107,7 @@ export function ZonePanel({ world, zone, examples, onClose, state, onSetPlan }: 
       {e.unknownLine && <p className="muted small">{e.unknownLine}</p>}
 
       <h3>Ad options</h3>
-      <p className="muted small">
-        {FORMAT_NAMES[plan.format]} ads{shown ? ", once they've fully built up (about 10 days)" : ""}
-      </p>
-      <table className="levels">
+      <table className="levels" aria-label={`${FORMAT_NAMES[plan.format]} ads, once built up`}>
         <thead>
           <tr>
             <th scope="col">Level</th>
@@ -153,13 +148,11 @@ export function ZonePanel({ world, zone, examples, onClose, state, onSetPlan }: 
           <b>No plan pays here</b> for {world.product.name.toLowerCase()}.
         </p>
       )}
-      <p className="muted small">
-        {shown
-          ? `Cost includes the campaign fee (${usd(C.formats.ooh.fee)}/day, digital ${usd(C.formats.digital.fee)}). Profit is after product costs and a ${C.variableOverhead * 100}% fulfillment share.`
-          : state.difficulty === "normal"
-            ? `Estimates unlock after a week of ads here (${state.adDays[zone]} of ${C.insightDays} days so far).`
-            : "On Hard there are no estimates: run ads and watch what they bring in."}
-      </p>
+      {!shown && state.difficulty === "normal" && (
+        <p className="muted small">
+          Estimates unlock after {C.insightDays} days of ads ({state.adDays[zone]}/{C.insightDays})
+        </p>
+      )}
 
       {exampleLines.length > 0 && (
         <>
@@ -187,7 +180,7 @@ export function ZonePanel({ world, zone, examples, onClose, state, onSetPlan }: 
 
 /**
  * A short line under each channel. How strong each is here is only rated where estimates
- * are shown (Easy, or Normal after a week of ads), so it can't give the answer away.
+ * are shown (Easy, or Normal after two weeks of ads), so it can't give the answer away.
  */
 function channelHint(world: World, zone: number, ch: Channel, shown: boolean): string {
   const z = world.zones[zone];
@@ -273,29 +266,24 @@ function AdControls({
         ))}
       </div>
       {level === 0 ? (
-        <p className="muted small">
-          No ads here. Tick out-of-home, digital or both. Out-of-home suits busy areas and stores that sell you; digital
-          follows your buyers, with no downtown premium.
-        </p>
+        <p className="muted small">No ads here</p>
       ) : (
         <p className="plan-result small">
           <b>Your plan:</b> {usd(adCost(world, state, zone, level, plan.format))}/day
           {shown && (
             <>
               {" "}
-              → about {estimate(world.zones[zone], plan).customers.toFixed(1)} customers,{" "}
+              → {estimate(world.zones[zone], plan).customers.toFixed(1)} customers,{" "}
               <span className={estimate(world.zones[zone], plan).profit >= 0 ? "pos" : "neg"}>
                 {estimate(world.zones[zone], plan).profit >= 0 ? "+" : ""}
                 {usd(estimate(world.zones[zone], plan).profit)}/day
-              </span>{" "}
-              once built up
+              </span>
             </>
           )}
-          {plan.format === "both" && <span className="muted"> · each channel reaches its own people; some see both</span>}
         </p>
       )}
       {priceUp && <p className="small warn">Ad prices are up 25% here for a few days.</p>}
-      {active && (
+      {active && state.day > 0 && (
         <dl className="zone-stats">
           <div>
             <dt>Awareness</dt>
@@ -320,15 +308,10 @@ function AdControls({
           )}
         </dl>
       )}
-      {learning && state.adDays[zone] < C.insightDays && (
+      {learning && level > 0 && state.adDays[zone] < C.insightDays && (
         <p className="muted small">
-          {state.adDays[zone] > 0
-            ? `${C.insightDays - state.adDays[zone]} more days of ads here and you'll learn something about your buyers.`
-            : `A week of ads here teaches you something about your buyers. Low digital ads are a cheap way to test.`}
+          Next insight in {C.insightDays - state.adDays[zone]} day{C.insightDays - state.adDays[zone] === 1 ? "" : "s"}
         </p>
-      )}
-      {level > 0 && strength < 0.6 && (
-        <p className="muted small">Ads take about 10 days to reach full strength, so early days lose money.</p>
       )}
     </section>
   );

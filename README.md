@@ -2,16 +2,16 @@
 
 **Launch a brand and grow it by buying ads across San Francisco's real neighborhoods, where every neighborhood's value comes from an open map of what's actually there.**
 
-Ad Empire SF is a small tycoon game that runs in the browser. You pick a product, start with $3,000, and spend 90 game days deciding where your next ad dollar is worth the most. A gym-heavy corner of SoMa is great for protein powder and useless for baby gear. Downtown is packed with people, but its ads are priced to match. The quiet, cheap neighborhood with exactly your audience is the one worth finding.
+Ad Empire SF is a small tycoon game that runs in the browser. You pick a product, start with $5,000, and spend 180 game days deciding where your next ad dollar is worth the most. A gym-heavy corner of SoMa is great for protein powder and useless for baby gear. Downtown is packed with people, but its ads are priced to match. The quiet, cheap neighborhood with exactly your audience is the one worth finding.
 
-> **Status: playable, not yet deployed.** The full game runs locally: start screen, map, buying ads, the 90-day run and the end screen. Next: putting it online, then balancing and polish. See [Roadmap](#roadmap).
+> **Status: playable, not yet deployed.** The full game runs locally: start screen, map, buying ads, the 180-day run and the end screen. Next: putting it online, then balancing and polish. See [Roadmap](#roadmap).
 
 ## How it plays
 
 1. **Pick a product:** 20 of them, from cold brew subscriptions and protein powder to houseplant delivery, e-bike rental and city tours. Each is tagged Starter, Tricky or Expert depending on how many surprises it hides.
-2. **Pick a difficulty:** **Easy** shows everything: which places draw your buyers, which stores carry you, who you're up against, plus suggestions. **Normal** tells you who your buyers are and one or two places that matter. **Hard** gives you only a line about your buyers. On Normal and Hard you learn one new thing every time you run ads in a neighborhood for a week ("Juice bars compete with you: they take sales nearby").
+2. **Pick a difficulty:** **Easy** shows everything: which places draw your buyers, which stores carry you, who you're up against, plus suggestions. **Normal** tells you who your buyers are and one or two places that matter. **Hard** gives you only a line about your buyers. On Normal and Hard you learn one new thing every time you run ads in a neighborhood for two weeks ("Juice bars compete with you: they take sales nearby").
 3. **Read the map:** color it by any of ~110 kinds of places (gyms, bars, pharmacies, hotels, schools…), alone or added together. Some places draw your buyers, some stores sell your product, some compete with it, and some just look relevant. Click a neighborhood to see what's there and what ads cost.
-4. **Buy ads:** for each neighborhood tick **out-of-home** (billboards, bus shelters, posters: strongest in busy areas and near stores that sell you, priced at a downtown premium), **digital** (targeted ads that follow where your buyers are, no downtown premium), both, or neither, and pick how hard they run (Low, Medium, High). Each ticked channel costs its own money and reaches its own people. Ads take about a week to build up, have diminishing returns and fade after you stop; out-of-home ads also spill over a little into neighboring areas. Every campaign has a daily fee, so advertising everywhere is the fastest way to go broke.
+4. **Buy ads:** for each neighborhood tick **out-of-home** (billboards, bus shelters, posters: strongest in busy areas and near stores that sell you, priced at a downtown premium), **digital** (targeted ads that follow where your buyers are, no downtown premium), both, or neither, and pick how hard they run (Low, Medium, High). Each ticked channel costs its own money and reaches its own people. Ads take about a month to reach full strength, have diminishing returns and fade after you stop; out-of-home ads also spill over a little into neighboring areas. Every campaign has a daily fee, so advertising everywhere is the fastest way to go broke.
 5. **Earn and reinvest:** customers arrive from where your ads run. Cut what loses money, expand what works, and survive events like street fairs, rainy weeks and rival campaigns.
 6. **Finish:** after day 90 you see your net worth, your best and worst neighborhoods, and your cash over time. Run out of cash for three days and you're bankrupt.
 
@@ -62,7 +62,7 @@ Needs Node.js.
 npm install
 npm run dev       # the game at http://localhost:5174
 npm test          # 155 tests for the game rules
-npm run report    # how a few simple strategies do over 90 days, per product
+npm run report    # how a few simple strategies do over 180 days, per product
 ```
 
 ## Run the data pipeline
@@ -81,7 +81,7 @@ python scripts/build_zones.py    # writes public/data/
 |---|---|
 | `scripts/extract.py` | Reads Overture's cloud GeoParquet with DuckDB: places, buildings, transit stops, boundaries, parks |
 | `scripts/build_zones.py` | Builds the neighborhoods and per-neighborhood inputs |
-| `scripts/categories.json` | Products and what each place type does for them (customers, stockists, competitors, decoys), weights, weekly crowd patterns, map groups (easy to tune) |
+| `scripts/categories.json` | Products and what each place type does for them (customers, stockists, competitors, decoys), weights, map groups (easy to tune) |
 | `public/data/` | `zones.geojson`, `zones.json`, `examples.json`, `meta.json` |
 
 ## Roadmap

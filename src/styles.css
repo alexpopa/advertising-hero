@@ -355,3 +355,94 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
   .end-cols { grid-template-columns: 1fr; }
   .menu-card { padding: 18px; }
 }
+
+/* ---------- Your plan (shown while the clock is stopped): one compact row ---------- */
+.plan-tray {
+  position: absolute; z-index: 6; left: 50%; bottom: 24px; transform: translateX(-50%);
+  width: max-content; max-width: min(620px, calc(100% - 432px)); padding: 8px 8px 8px 12px;
+  display: flex; align-items: center; gap: 10px; animation: tray-in .3s cubic-bezier(.2, .9, .3, 1.2);
+}
+/* With the neighborhood card open, center in the space left of it. */
+.plan-tray.behind-panel { left: calc((100% - 392px) / 2); max-width: min(620px, calc(100% - 392px - 432px)); }
+@keyframes tray-in { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
+.plan-empty { padding: 0 4px; }
+.plan-total { flex: none; white-space: nowrap; }
+.launch-btn { flex: none; font-size: 14px; padding: 9px 16px; box-shadow: 0 4px 14px rgba(42, 120, 214, .35); }
+.launch-btn:not(:disabled) { animation: pulse 1.8s ease-out infinite; }
+.plan-chips { list-style: none; margin: 0; padding: 2px 0; display: flex; gap: 6px; overflow-x: auto; min-width: 0; scrollbar-width: thin; }
+.plan-chip {
+  flex: none; display: flex; align-items: center; background: var(--accent-soft); border: 1px solid #cde2fb; border-radius: 999px;
+  animation: chip-in .3s cubic-bezier(.2, .9, .3, 1.4);
+}
+@keyframes chip-in { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
+.chip-main { font: inherit; font-size: 13px; display: flex; align-items: center; gap: 6px; background: none; border: none; padding: 4px 4px 4px 4px; cursor: pointer; color: var(--text); }
+.chip-level { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.chip-name { font-weight: 600; }
+.chip-chans { font-size: 12px; }
+.chip-x { font: inherit; border: none; background: none; cursor: pointer; color: var(--text-2); padding: 2px 9px 2px 2px; font-size: 16px; line-height: 1; }
+.chip-x:hover { color: var(--neg); }
+
+/* ---------- Bubbles over the map: 🙂 lead, 🛍️ order, 🎉 first sale, ✓ added ---------- */
+/* No position here: MapLibre positions markers absolutely, and overriding it stretches them. */
+.pop { pointer-events: none; z-index: 3; }
+.pop-inner {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px 3px 5px; border-radius: 999px;
+  background: #fff; box-shadow: 0 6px 16px rgba(0, 0, 0, .18), 0 1px 2px rgba(0, 0, 0, .12);
+  font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap;
+  transform-origin: 50% 100%; animation: pop-rise 2.2s cubic-bezier(.2, .8, .2, 1) forwards;
+}
+.pop-emoji { font-size: 17px; line-height: 1; }
+.pop-lead .pop-inner { padding: 2px 9px 2px 3px; border: 2px solid #8cbcf2; }
+.pop-lead .pop-text { color: #1d5fae; }
+.pop-order .pop-text { color: var(--pos); }
+.pop-added .pop-inner { background: var(--pos); color: #fff; padding: 4px 11px 4px 8px; animation-duration: 1.4s; }
+.pop-added .pop-emoji { font-size: 14px; }
+.pop-first .pop-inner {
+  font-size: 15px; padding: 6px 14px 6px 9px; color: #5a3d00;
+  background: linear-gradient(135deg, #fff6d6, #ffd86b); box-shadow: 0 8px 24px rgba(242, 183, 5, .45);
+  animation: pop-rise-big 3s cubic-bezier(.2, .8, .2, 1) forwards;
+}
+.pop-first .pop-emoji { font-size: 22px; animation: wiggle .5s ease-in-out 3; }
+@keyframes pop-rise {
+  0% { opacity: 0; transform: translateY(10px) scale(.3); }
+  12% { opacity: 1; transform: translateY(-6px) scale(1.15); }
+  22% { transform: translateY(0) scale(1); }
+  70% { opacity: 1; transform: translateY(-24px) scale(1); }
+  100% { opacity: 0; transform: translateY(-42px) scale(.92); }
+}
+@keyframes pop-rise-big {
+  0% { opacity: 0; transform: translateY(14px) scale(.2); }
+  10% { opacity: 1; transform: translateY(-10px) scale(1.25); }
+  20% { transform: translateY(0) scale(1); }
+  80% { opacity: 1; transform: translateY(-20px) scale(1); }
+  100% { opacity: 0; transform: translateY(-36px) scale(.95); }
+}
+@keyframes wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
+.pop-ring {
+  position: absolute; left: 50%; bottom: -8px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%;
+  border: 2px solid var(--pos); opacity: 0; animation: ring 1.2s ease-out .15s forwards;
+}
+.pop-first .pop-ring { border-color: #f2b705; animation-duration: 1.6s; }
+@keyframes ring { 0% { opacity: .9; transform: scale(.4); } 100% { opacity: 0; transform: scale(4.5); } }
+.confetti {
+  position: absolute; left: 50%; bottom: 14px; width: 7px; height: 10px; border-radius: 2px; opacity: 0;
+  animation: confetti 1.5s cubic-bezier(.15, .7, .3, 1) forwards;
+}
+@keyframes confetti {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 40px)) rotate(var(--rot)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pop-inner, .pop-first .pop-inner { animation: pop-fade 1.8s ease forwards; }
+  .pop-first .pop-emoji { animation: none; }
+  .pop-ring, .confetti { display: none; }
+  .launch-btn:not(:disabled), .plan-chip, .plan-tray { animation: none; }
+}
+@keyframes pop-fade { 0% { opacity: 0; } 15%, 75% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (max-width: 720px) {
+  /* Leaves the right edge free for the home button. */
+  .plan-tray, .plan-tray.behind-panel { left: 8px; right: 56px; bottom: 56px; width: auto; max-width: none; transform: none; }
+  .plan-tray.behind-panel { display: none; }
+    }

@@ -79,7 +79,7 @@ export function EndScreen({ world, brand, state, onPlayAgain, onViewMap }: Props
           <p className="muted">
             {used.length < 4
               ? `Tip: running the business costs ${usd(C.fixedOverhead)}/day even with no ads, so one or two campaigns can't cover it. Aim for five or six strong neighborhoods, added a few at a time as cash allows.`
-              : `Tip: every campaign costs a ${usd(C.formats.ooh.fee)}/day fee (${usd(C.formats.digital.fee)} digital) on top of the ads, so weak neighborhoods lose money. Check the campaigns list and cut anything that's still red after a week.`}
+              : `Tip: every campaign costs a ${usd(C.formats.ooh.fee)}/day fee (${usd(C.formats.digital.fee)} digital) on top of the ads, so weak neighborhoods lose money. Check the campaigns list and cut anything that's still red after a month.`}
           </p>
         )}
         <div className="row">

@@ -200,7 +200,7 @@ export function Knowledge({ world, state, onSelect }: Pick<Props, "world" | "sta
 }
 
 export function Events({ world, state, onSelect }: Pick<Props, "world" | "state" | "onSelect">) {
-  if (!state.eventLog.length) return <p className="muted">Nothing has happened yet. Events come every week or two.</p>;
+  if (!state.eventLog.length) return <p className="muted">Nothing has happened yet. Events come every few weeks.</p>;
   return (
     <ul className="event-log">
       {[...state.eventLog].reverse().map((e, i) => {

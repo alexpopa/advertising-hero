@@ -14,6 +14,61 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 maplibregl.setWorkerUrl(workerUrl);
 import { LEVEL_NAMES, type Level, type World } from "./sim";
 import type { ZonePaint } from "./layers";
+import type { Pop, PopKind } from "./pops";
+
+const POP_EMOJI: Record<PopKind, string> = { lead: "🙂", order: "🛍️", first: "🎉", added: "✓" };
+const POP_LABEL: Record<PopKind, string> = { lead: "Someone noticed you", order: "Order", first: "First sale", added: "Added to your plan" };
+/** How long a bubble stays on screen; matches the longest animation in styles.css. */
+const POP_MS = 2200;
+
+/**
+ * Put one bubble over a zone. A MapLibre marker keeps it pinned to the zone while the map
+ * pans and zooms; the inner element does the animation (the marker owns the outer transform).
+ */
+function spawnPop(m: maplibregl.Map, at: [number, number], pop: Pop) {
+  if (document.hidden) return;
+  const el = document.createElement("div");
+  el.className = `pop pop-${pop.kind}`;
+  el.setAttribute("aria-hidden", "true");
+  const inner = document.createElement("div");
+  inner.className = "pop-inner";
+  inner.title = POP_LABEL[pop.kind];
+  const emoji = document.createElement("span");
+  emoji.className = "pop-emoji";
+  emoji.textContent = POP_EMOJI[pop.kind];
+  inner.append(emoji);
+  if (pop.text) {
+    const t = document.createElement("span");
+    t.className = "pop-text";
+    t.textContent = pop.text;
+    inner.append(t);
+  }
+  el.append(inner);
+  if (pop.kind === "order" || pop.kind === "first") {
+    const ring = document.createElement("div");
+    ring.className = "pop-ring";
+    el.append(ring);
+  }
+  if (pop.kind === "first") {
+    const colors = ["#2a78d6", "#1a7f45", "#e5612c", "#f2b705", "#b3261e", "#7b4fd6"];
+    for (let k = 0; k < 18; k++) {
+      const c = document.createElement("span");
+      c.className = "confetti";
+      const angle = (Math.PI * 2 * k) / 18 + Math.random() * 0.3;
+      const dist = 50 + Math.random() * 40;
+      c.style.setProperty("--dx", `${Math.cos(angle) * dist}px`);
+      c.style.setProperty("--dy", `${Math.sin(angle) * dist - 30}px`);
+      c.style.setProperty("--rot", `${Math.round(Math.random() * 720 - 360)}deg`);
+      c.style.background = colors[k % colors.length];
+      el.append(c);
+    }
+  }
+  // Spread bubbles around the zone's center so a busy zone doesn't stack them.
+  const spread = pop.kind === "first" || pop.kind === "added" ? 0 : 40;
+  const offset: [number, number] = [(Math.random() - 0.5) * 2 * spread, -Math.random() * spread * 0.6];
+  const marker = new maplibregl.Marker({ element: el, anchor: "bottom", offset }).setLngLat(at).addTo(m);
+  window.setTimeout(() => marker.remove(), pop.kind === "first" ? POP_MS + 800 : POP_MS);
+}
 
 const SF_BOUNDS: [number, number, number, number] = [-122.52, 37.7, -122.35, 37.835];
 const BASEMAP = "https://tiles.openfreemap.org/styles/positron";
@@ -58,6 +113,8 @@ interface Props {
   describe: (zone: number) => string | null;
   /** On phones the neighborhood card covers the lower part of the screen. */
   zoneCardOpen?: boolean;
+  /** Bubbles to show over zones (leads, orders...). New ids are shown once each. */
+  pops?: Pop[];
 }
 
 interface Hover {
@@ -66,7 +123,7 @@ interface Hover {
   zone: number;
 }
 
-export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOpen, paint, describe }: Props) {
+export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOpen, paint, describe, pops }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [ready, setReady] = useState(false);
@@ -136,19 +193,31 @@ export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOp
         },
         firstLabel,
       );
+      // Zones with ads: a soft blue tint and a solid blue outline, so your plan stands out
+      // on any map coloring.
+      m.addLayer(
+        {
+          id: "zones-active-fill",
+          type: "fill",
+          source: "zones",
+          filter: [">", ["get", "level"], 0],
+          paint: { "fill-color": "#2a78d6", "fill-opacity": 0.16 },
+        },
+        firstLabel,
+      );
       m.addLayer({
         id: "zones-active",
         type: "line",
         source: "zones",
         filter: [">", ["get", "level"], 0],
-        paint: { "line-color": "#0b0b0b", "line-width": 1.5, "line-dasharray": [2, 1.5] },
+        paint: { "line-color": "#2a78d6", "line-width": 2.5 },
       });
       m.addSource("badges", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       m.addLayer({
         id: "badges-circle",
         type: "circle",
         source: "badges",
-        paint: { "circle-radius": 10, "circle-color": "#ffffff", "circle-stroke-color": "#0b0b0b", "circle-stroke-width": 1.5 },
+        paint: { "circle-radius": 11, "circle-color": "#2a78d6", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 },
       });
       m.addLayer({
         id: "badges-text",
@@ -161,7 +230,7 @@ export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOp
           "text-allow-overlap": true,
           "text-ignore-placement": true,
         },
-        paint: { "text-color": "#0b0b0b" },
+        paint: { "text-color": "#ffffff" },
       });
       m.addLayer({
         id: "zones-hover",
@@ -257,6 +326,20 @@ export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOp
     }
     // Only when the selection changes, not when the product does.
   }, [ready, selected, zoneCardOpen]);
+
+  // Show new bubbles once each, after their delay.
+  const shownPops = useRef(new Set<number>());
+  useEffect(() => {
+    if (!ready || !pops) return;
+    const m = map.current!;
+    for (const p of pops) {
+      if (shownPops.current.has(p.id)) continue;
+      shownPops.current.add(p.id);
+      const z = world.zones[p.zone];
+      if (!z) continue;
+      window.setTimeout(() => spawnPop(m, z.data.center, p), p.delay);
+    }
+  }, [ready, pops, world]);
 
   /** Back to the starting view: all of San Francisco. */
   const goHome = () => {

@@ -5,7 +5,7 @@
  *
  * The run is saved in the browser after every change, so a reload offers Continue.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EndScreen } from "./EndScreen";
 import { GameHud } from "./GameHud";
 import { Menu } from "./Menu";
@@ -16,6 +16,7 @@ import { layerView, normalizeLayer, type MapLayer } from "./layers";
 import { loadGameData, type GameData } from "./data";
 import { buildWorld, initGame, type Difficulty, type GameState, type Plan } from "./sim";
 import { loadGame, saveGame, type SavedGame } from "./storage";
+import { popId, type Pop } from "./pops";
 
 type Phase = "menu" | "play" | "end";
 
@@ -26,6 +27,11 @@ export function App() {
   const [phase, setPhase] = useState<Phase>("menu");
   const [startNew, setStartNew] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  /** Bubbles over the map; only recent ones are kept (the map shows each id once). */
+  const [pops, setPops] = useState<Pop[]>([]);
+  const addPops = useCallback((p: Pop[]) => p.length && setPops((old) => [...old.slice(-80), ...p]), []);
+  const levelsNow = useRef<number[]>([]);
+  levelsNow.current = game?.state.levels ?? [];
   const layer: MapLayer = normalizeLayer(game?.layer) ?? { kind: game?.state.difficulty === "easy" ? "fit" : "none" };
   const setLayer = useCallback((l: MapLayer) => setGame((g) => (g ? { ...g, layer: l } : g)), []);
 
@@ -69,7 +75,8 @@ export function App() {
   );
   /** Change a zone's campaign: its level, its format, or both. */
   const setPlan = useCallback(
-    (zone: number, change: Partial<Plan>) =>
+    (zone: number, change: Partial<Plan>) => {
+      if (change.level && !levelsNow.current[zone]) addPops([{ id: popId(), zone, kind: "added", text: "Added", delay: 0 }]);
       setState((s) => {
         if (s.status !== "playing") return s;
         const at = <T,>(arr: T[], v: T | undefined) => (v === undefined ? arr : arr.map((x, i) => (i === zone ? v : x)));
@@ -78,8 +85,9 @@ export function App() {
           levels: at(s.levels, change.level),
           formats: at(s.formats, change.format),
         };
-      }),
-    [setState],
+      });
+    },
+    [setState, addPops],
   );
 
   // Escape closes the neighborhood card.
@@ -116,6 +124,7 @@ export function App() {
           paint={view.paint}
           describe={view.describe}
           zoneCardOpen={inGame && selected !== null}
+          pops={inGame ? pops : undefined}
         />
       )}
 
@@ -143,6 +152,8 @@ export function App() {
             setState={setState}
             setPlan={setPlan}
             onSelect={setSelected}
+            onPops={addPops}
+            zoneOpen={selected !== null}
             paused={phase !== "play"}
             onMenu={() => {
               setStartNew(false);

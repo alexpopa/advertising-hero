@@ -24,7 +24,7 @@ export const DIFFICULTIES: { key: Difficulty; name: string; text: string }[] = [
   {
     key: "normal",
     name: "Normal",
-    text: "You know who your buyers are and one or two places that matter. Each neighborhood you advertise in for a week teaches you one more.",
+    text: "You know who your buyers are and one or two places that matter. Each neighborhood you advertise in for two weeks teaches you one more.",
   },
   {
     key: "hard",

@@ -3,9 +3,10 @@
  * These are design choices, not facts: Overture gives us the inputs, not the economy.
  */
 export const C = {
-  /** Tight on purpose: the first week is a squeeze while ads build up. */
-  startCash: 3000,
-  days: 90,
+  /** Tight on purpose: the first month is a squeeze while ads build up. */
+  startCash: 5000,
+  /** Six months: long enough for campaigns to mature and be adjusted mid-run. */
+  days: 180,
 
   /** Floor space per person, m2. People ("H") = floor area / this. */
   m2PerPerson: 60,
@@ -58,7 +59,7 @@ export const C = {
   },
 
   /** A neighborhood teaches you one thing after this many days of ads there (Normal and Hard). */
-  insightDays: 7,
+  insightDays: 14,
 
   /** Ad price for Low, $/day, for a zone of 10,000 people at average busyness, before the money scale. */
   adPriceBase: 20,
@@ -77,19 +78,23 @@ export const C = {
   /** Ad level multipliers: Off, Low, Medium, High. */
   levelMult: [0, 1, 2, 4] as const,
   /**
-   * Ad pressure kept from one day to the next: ads take ~10 days to build up and fade 10%
-   * a day once stopped. (Steady-state reach is set by reachScale; with 0.9 and 16 it's the
-   * design's Low 46%, Medium 71%, High 92%.)
+   * Ad pressure kept from one day to the next. At 0.93 a campaign reaches about 2/3 of its
+   * full strength in 2 weeks and ~92% in 5 weeks, and stopped ads fade over weeks, like
+   * real brand campaigns. (It was 0.9, which got to ~90% awareness in under a week, so all
+   * the decisions happened in week 1.) Steady-state reach is set by reachScale below.
    */
-  adDecay: 0.9,
+  adDecay: 0.93,
   /**
    * Share of each neighbor's ad intensity that spills into a zone. Zones have ~6 neighbors,
    * so this is kept small: at 0.15, blanketing the city at Low gave every zone nearly
    * Medium reach for free.
    */
   spillover: 0.05,
-  /** Reach = 1 - exp(-pressure / reachScale). */
-  reachScale: 16,
+  /**
+   * Reach = 1 - exp(-pressure / reachScale). Scaled with adDecay so full-strength reach stays
+   * the design's Low 46%, Medium 71%, High 92% (steady pressure = level / (1 - adDecay)).
+   */
+  reachScale: 1.6 / (1 - 0.93),
 
   /** Brand awareness: +1% customers everywhere per zone with reach > 50%, up to +10%. */
   brandPerZone: 0.01,
@@ -108,6 +113,6 @@ export const C = {
   bankruptDays: 3,
 
   /** Days between events (inclusive range). */
-  eventGapMin: 8,
-  eventGapMax: 12,
+  eventGapMin: 12,
+  eventGapMax: 18,
 } as const;

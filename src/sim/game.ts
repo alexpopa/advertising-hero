@@ -186,7 +186,7 @@ export function step(world: World, state: GameState, actions: Action[] = []): Ga
     : day >= C.days ? "finished"
     : "playing";
 
-  // Insights: a week of ads in a neighborhood teaches one thing about the product.
+  // Insights: two weeks of ads in a neighborhood teaches one thing about the product.
   const adDays = state.adDays.map((d, i) => (levels[i] > 0 ? d + 1 : d));
   let known = state.known;
   let insights = state.insights;
