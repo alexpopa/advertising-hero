@@ -5,7 +5,7 @@
  */
 import { useMemo, useState } from "react";
 import { C, type CategoriesData, type Difficulty, type Tier } from "./sim";
-import type { SavedGame } from "./storage";
+import { bestDays, type SavedGame, type Win } from "./storage";
 import { usd } from "./scale";
 
 export const TIER_NAMES: Record<Tier, string> = { starter: "Starter", tricky: "Tricky", expert: "Expert" };
@@ -35,42 +35,45 @@ function randomBrand(): string {
   return `${pick(NAME_A)} ${pick(NAME_B)}`;
 }
 
-type Step = "home" | "product" | "name" | "difficulty";
-const STEPS: Step[] = ["product", "name", "difficulty"];
+type Step = "home" | "pitch" | "loan";
+const STEPS: Step[] = ["pitch", "loan"];
 
 interface Props {
   categories: CategoriesData;
   saved: SavedGame | null;
+  /** Paid-off runs in this browser: the best day shows on each product. */
+  wins: Win[];
   /** Skip the home step (after "Play again"). */
   startNew?: boolean;
   onStart: (brand: string, productKey: string, difficulty: Difficulty) => void;
   onContinue: () => void;
 }
 
-export function Menu({ categories, saved, startNew, onStart, onContinue }: Props) {
-  const [step, setStep] = useState<Step>(startNew ? "product" : "home");
+export function Menu({ categories, saved, wins, startNew, onStart, onContinue }: Props) {
+  const best = useMemo(() => bestDays(wins), [wins]);
+  const [step, setStep] = useState<Step>(startNew ? "pitch" : "home");
   const [brand, setBrand] = useState(randomBrand);
   const [product, setProduct] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<Difficulty>("hard");
   const resumable = saved && saved.state.status === "playing";
   const finished = saved && saved.state.status !== "playing";
-  const n = STEPS.indexOf(step as Exclude<Step, "home">);
+  const n = STEPS.indexOf(step);
   const groups = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const [key, p] of Object.entries(categories.products)) m.set(p.group, [...(m.get(p.group) ?? []), key]);
     return [...m];
   }, [categories]);
   const savedProduct = saved ? categories.products[saved.state.productKey] : undefined;
+  const chosen = product ? categories.products[product] : undefined;
   const back = () => setStep(n <= 0 ? "home" : STEPS[n - 1]);
+  const ready = !!product && !!brand.trim();
 
   if (step === "home") {
     return (
       <div className="menu-layer">
         <div className="float-card menu-card home">
-          <h1 className="menu-title">Ad Empire SF</h1>
-          <p className="menu-pitch">
-            Grow a brand by buying ads across San Francisco's real neighborhoods. You have {usd(C.startCash)} and {C.days}{" "}
-            days.
-          </p>
+          <h1 className="menu-title">Advertising Hero</h1>
+          <p className="menu-pitch">One brand, 76 San Francisco neighborhoods, 180 days.</p>
           <div className="menu-actions">
             {resumable && (
               <button className="btn btn-primary btn-big" onClick={onContinue}>
@@ -80,7 +83,7 @@ export function Menu({ categories, saved, startNew, onStart, onContinue }: Props
                 </span>
               </button>
             )}
-            <button className={"btn btn-big " + (resumable ? "btn-ghost" : "btn-primary")} onClick={() => setStep("product")}>
+            <button className={"btn btn-big " + (resumable ? "btn-ghost" : "btn-primary")} onClick={() => setStep("pitch")}>
               New game
               {resumable && <span className="btn-sub">Replaces your saved game</span>}
             </button>
@@ -97,7 +100,7 @@ export function Menu({ categories, saved, startNew, onStart, onContinue }: Props
 
   return (
     <div className="menu-layer">
-      <div className="float-card menu-card" role="dialog" aria-label="New game">
+      <div className={"float-card menu-card story story-" + step} role="dialog" aria-label="New game">
         <header className="step-head">
           <button className="icon-btn" onClick={back} aria-label="Back">
             ‹
@@ -110,9 +113,18 @@ export function Menu({ categories, saved, startNew, onStart, onContinue }: Props
           <span className="icon-btn-spacer" />
         </header>
 
-        {step === "product" && (
-          <>
-            <h2>What do you sell?</h2>
+        {step === "pitch" && (
+          <form
+            className="story-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (ready) setStep("loan");
+            }}
+          >
+            <div className="story-lede">
+              <h2>Today, you quit your job.</h2>
+              <p>No more someone else's dream. You're going all in on your own brand. What will you sell?</p>
+            </div>
             <div className="product-groups">
               {groups.map(([group, keys]) => (
                 <section key={group} aria-label={group}>
@@ -126,17 +138,21 @@ export function Menu({ categories, saved, startNew, onStart, onContinue }: Props
                           type="button"
                           className={"product-card" + (product === key ? " selected" : "")}
                           aria-pressed={product === key}
-                          onClick={() => {
-                            setProduct(key);
-                            setStep("name");
-                          }}
+                          onClick={() => setProduct(key)}
                         >
                           <span className="product-top">
                             <span className="product-icon" aria-hidden>
                               {p.icon}
                             </span>
-                            <span className={`tier tier-${p.tier}`} title={TIER_HELP[p.tier]}>
-                              {TIER_NAMES[p.tier]}
+                            <span className="product-badges">
+                              {best.has(key) && (
+                                <span className="tier best-day" title={`Best: paid off on day ${best.get(key)!.day}`}>
+                                  🏆 {best.get(key)!.day}
+                                </span>
+                              )}
+                              <span className={`tier tier-${p.tier}`} title={TIER_HELP[p.tier]}>
+                                {TIER_NAMES[p.tier]}
+                              </span>
                             </span>
                           </span>
                           <span className="product-name">{p.name}</span>
@@ -148,50 +164,60 @@ export function Menu({ categories, saved, startNew, onStart, onContinue }: Props
                 </section>
               ))}
             </div>
-          </>
-        )}
-
-        {step === "name" && (
-          <form
-            className="step-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (brand.trim()) setStep("difficulty");
-            }}
-          >
-            <h2>Name your brand</h2>
-            <div className="row">
-              <input
-                autoFocus
-                aria-label="Brand name"
-                value={brand}
-                maxLength={32}
-                onChange={(e) => setBrand(e.target.value)}
-              />
-              <button className="btn btn-ghost" onClick={() => setBrand(randomBrand())} type="button">
-                🎲 Random
+            <footer className="story-foot">
+              <label className="name-line">
+                <span className="name-icon" aria-hidden>
+                  {chosen?.icon ?? "🏷️"}
+                </span>
+                <input aria-label="Brand name" value={brand} maxLength={32} onChange={(e) => setBrand(e.target.value)} />
+                <button className="icon-btn" onClick={() => setBrand(randomBrand())} type="button" aria-label="Random name" title="Random name">
+                  🎲
+                </button>
+              </label>
+              <button className="btn btn-primary" type="submit" disabled={!ready}>
+                Next
               </button>
-            </div>
-            <button className="btn btn-primary btn-big" type="submit" disabled={!brand.trim()}>
-              Next
-            </button>
+            </footer>
           </form>
         )}
 
-        {step === "difficulty" && (
+        {step === "loan" && chosen && (
           <>
-            <h2>How do you want to play?</h2>
-            <div className="choice-list">
+            <div className="story-lede">
+              <h2>
+                {chosen.icon} {brand.trim()} is ready to open its doors.
+              </h2>
+              <p>
+                Your life savings are gone, and the bank lent you the rest. There's {usd(C.startCash)} left in the
+                account. Then a letter arrives.
+              </p>
+            </div>
+            <blockquote className="bank-letter">
+              <span className="bank-mark" aria-hidden>
+                🏦
+              </span>
+              <p>
+                Dear {brand.trim()}: you owe us <b>{usd(C.loan)}</b>. Pay it in full by <b>day {C.days}</b>, or we take
+                everything you own.
+              </p>
+            </blockquote>
+            <div className="segmented" role="radiogroup" aria-label="Difficulty">
               {DIFFICULTIES.map((d) => (
-                <button key={d.key} className="choice" onClick={() => product && onStart(brand.trim(), product, d.key)}>
-                  <b>
-                    {d.name}
-                    {d.key === "hard" && <span className="tag">Recommended</span>}
-                  </b>
-                  <span className="muted small">{d.text}</span>
+                <button
+                  key={d.key}
+                  role="radio"
+                  aria-checked={difficulty === d.key}
+                  className={difficulty === d.key ? "on" : ""}
+                  onClick={() => setDifficulty(d.key)}
+                >
+                  {d.name}
                 </button>
               ))}
             </div>
+            <p className="muted small difficulty-text">{DIFFICULTIES.find((d) => d.key === difficulty)!.text}</p>
+            <button className="btn btn-primary btn-big" onClick={() => onStart(brand.trim(), product!, difficulty)}>
+              🔑 Open the doors
+            </button>
           </>
         )}
       </div>

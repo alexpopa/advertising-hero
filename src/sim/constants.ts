@@ -5,8 +5,14 @@
 export const C = {
   /** Tight on purpose: the first month is a squeeze while ads build up. */
   startCash: 50000,
-  /** Six months: long enough for campaigns to mature and be adjusted mid-run. */
+  /** Six months: long enough for campaigns to mature and be adjusted mid-run. The bank's deadline. */
   days: 180,
+  /**
+   * The bank loan (DESIGN.md 6.18): you borrowed this to build the product, and startCash is
+   * what's left. It's paid back automatically the day cash reaches it, which wins the game.
+   * Miss day `days` and the bank takes everything.
+   */
+  loan: 500000,
 
   /** Floor space per person, m2. People ("H") = floor area / this. */
   m2PerPerson: 60,
@@ -28,6 +34,11 @@ export const C = {
    *    profitable zone at full strength, makes this much profit per day.
    */
   perfectDailyProfit: 3000,
+  /**
+   * 3. Sales boost: customers in every zone ×this after calibration, ad prices unchanged. Tunes
+   *    how fast the bank loan can be paid off (DESIGN.md 6.18) without touching calibration.
+   */
+  salesBoost: 1.2,
   /** Potential multiplier = fitFloor + (1 - fitFloor) * fit^fitSharpness. */
   fitFloor: 0.05,
   fitSharpness: 2,

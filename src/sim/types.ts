@@ -226,7 +226,15 @@ export interface GameState {
   /** Hires and shops, in order. */
   purchases: Purchase[];
   daysBelowZero: number;
-  status: "playing" | "finished" | "bankrupt";
+  /**
+   * "paid": the loan was paid back (a win; the clock stops). "finished": day 180 came first
+   * and the bank takes everything. "bankrupt": cash stayed below $0 too long.
+   */
+  status: "playing" | "paid" | "finished" | "bankrupt";
+  /** The day the bank loan was paid back: the score. Unset until then. */
+  paidDay?: number;
+  /** Playing on after paying the loan: no deadline, no ending but bankruptcy. */
+  endless?: boolean;
   history: DayResult[];
   /** The most recent day, per zone (for the campaigns tab). */
   lastDay: ZoneLedger;

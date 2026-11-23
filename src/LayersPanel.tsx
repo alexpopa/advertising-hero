@@ -9,6 +9,7 @@ import { useState } from "react";
 import categories from "../scripts/categories.json";
 import { labelName, type CategoriesData, type World } from "./sim";
 import { cityCount, layerName, type LayerView, type MapLayer } from "./layers";
+import { useExclusivePanel } from "./panels";
 
 /** Map layer groups come from scripts/categories.json, so the data build and the map agree. */
 const GROUPS: [string, string[]][] = ((categories as unknown as CategoriesData).layers ?? []).map((g) => [g.group, g.labels]);
@@ -85,6 +86,7 @@ interface Props {
 
 export function MapControl({ world, layer, view, onChange, allowFit }: Props) {
   const [open, setOpen] = useState(false);
+  useExclusivePanel("layers", open, () => setOpen(false));
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const picked = layer.kind === "places" ? layer.labels : [];

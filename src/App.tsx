@@ -20,6 +20,7 @@ import {
   hire,
   initGame,
   isOn,
+  keepPlaying,
   openShop,
   topLevel,
   type Channel,
@@ -27,8 +28,9 @@ import {
   type GameState,
   type Plan,
 } from "./sim";
-import { loadGame, saveGame, type SavedGame } from "./storage";
+import { loadGame, loadWins, recordWin, saveGame, type SavedGame, type Win } from "./storage";
 import { popId, type Pop } from "./pops";
+import { useExclusivePanel } from "./panels";
 
 type Phase = "menu" | "play" | "end";
 
@@ -39,6 +41,9 @@ export function App() {
   const [phase, setPhase] = useState<Phase>("menu");
   const [startNew, setStartNew] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  /** Runs that paid off the bank, kept in this browser between games. */
+  const [wins, setWins] = useState<Win[]>(loadWins);
+  useExclusivePanel("zone", selected !== null, () => setSelected(null));
   /** Bubbles over the map; only recent ones are kept (the map shows each id once). */
   const [pops, setPops] = useState<Pop[]>([]);
   const addPops = useCallback((p: Pop[]) => p.length && setPops((old) => [...old.slice(-80), ...p]), []);
@@ -79,6 +84,12 @@ export function App() {
   // Show the results shortly after a run finishes. Only when the status changes, so closing
   // the results to look at the map doesn't bounce back.
   const status = game?.state.status;
+  // Paying off the bank is recorded the moment it happens (once per run).
+  const paidDay = game?.state.paidDay;
+  useEffect(() => {
+    if (game && paidDay !== undefined) setWins(recordWin(game.brand, game.state));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paidDay]);
   useEffect(() => {
     if (status && status !== "playing") {
       const t = setTimeout(() => setPhase((p) => (p === "play" ? "end" : p)), 800);
@@ -162,6 +173,7 @@ export function App() {
           key={String(startNew)}
           categories={data.categories}
           saved={game}
+          wins={wins}
           startNew={startNew}
           onStart={start}
           onContinue={resume}
@@ -214,6 +226,11 @@ export function App() {
           world={world}
           brand={game.brand}
           state={game.state}
+          wins={wins}
+          onKeepPlaying={() => {
+            setState(keepPlaying);
+            setPhase("play");
+          }}
           onPlayAgain={() => {
             setStartNew(true);
             setPhase("menu");

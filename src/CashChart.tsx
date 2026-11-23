@@ -8,14 +8,14 @@ import { usd } from "./scale";
 
 const W = 560;
 const H = 200;
-const PAD = { top: 12, right: 28, bottom: 24, left: 56 };
+const PAD = { top: 12, right: 28, bottom: 24, left: 76 };
 
-export function CashChart({ history, startCash }: { history: DayResult[]; startCash: number }) {
+export function CashChart({ history, startCash, goal }: { history: DayResult[]; startCash: number; goal?: number }) {
   const [hover, setHover] = useState<number | null>(null);
   const points = [{ day: 0, cash: startCash }, ...history.map((h) => ({ day: h.day, cash: h.cash }))];
   const maxDay = Math.max(1, points[points.length - 1].day);
   const lo = Math.min(0, ...points.map((p) => p.cash));
-  const hi = Math.max(...points.map((p) => p.cash)) * 1.05;
+  const hi = Math.max(goal ?? 0, ...points.map((p) => p.cash)) * 1.05;
   const x = (d: number) => PAD.left + (d / maxDay) * (W - PAD.left - PAD.right);
   const y = (c: number) => PAD.top + (1 - (c - lo) / (hi - lo || 1)) * (H - PAD.top - PAD.bottom);
   const ticks = niceTicks(lo, hi, 4);
@@ -48,6 +48,14 @@ export function CashChart({ history, startCash }: { history: DayResult[]; startC
             Day {d}
           </text>
         ))}
+        {goal !== undefined && (
+          <g>
+            <line x1={PAD.left} x2={W - PAD.right} y1={y(goal)} y2={y(goal)} className="goal" />
+            <text x={W - PAD.right} y={y(goal) - 5} className="tick" textAnchor="end">
+              🏦 {usd(goal)}
+            </text>
+          </g>
+        )}
         <path d={path} className="line" />
         {hp && (
           <g>

@@ -122,10 +122,18 @@ export function step(world: World, state: GameState, actions: Action[] = []): Ga
   const profit = revenue - adSpend - overhead;
   let cash = state.cash + profit;
 
+  // The bank loan is paid back automatically the day you can afford it: that's the win.
+  let paidDay = state.paidDay;
+  if (paidDay === undefined && cash >= C.loan) {
+    cash -= C.loan;
+    paidDay = day;
+  }
+
   const daysBelowZero = cash < 0 ? state.daysBelowZero + 1 : 0;
-  const status =
+  const status: GameState["status"] =
     daysBelowZero >= C.bankruptDays ? "bankrupt"
-    : day >= C.days ? "finished"
+    : paidDay === day ? "paid"
+    : paidDay === undefined && day >= C.days ? "finished"
     : "playing";
 
   // Insights: two weeks of ads in a neighborhood teaches one thing about the product.
@@ -159,10 +167,16 @@ export function step(world: World, state: GameState, actions: Action[] = []): Ga
     pressureDigital,
     daysBelowZero,
     status,
+    paidDay,
     history: [...state.history, { day, revenue, adSpend, overhead, profit, cash, customers }],
     lastDay,
     totals,
   };
+}
+
+/** After paying the bank: carry on with no deadline. Bankruptcy is the only ending left. */
+export function keepPlaying(state: GameState): GameState {
+  return state.status === "paid" ? { ...state, status: "playing", endless: true } : state;
 }
 
 /** A zone's profit on the most recent day: its gross profit minus its ad spend. */

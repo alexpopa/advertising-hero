@@ -165,3 +165,59 @@ export function markHintsSeen(): void {
     /* ignore */
   }
 }
+
+/** A run that paid off the bank: kept between games in this browser. The day is the score. */
+export interface Win {
+  /** The run's seed, so the same win is never recorded twice. */
+  seed: number;
+  productKey: string;
+  day: number;
+  difficulty: GameState["difficulty"];
+  brand: string;
+  /** When it was won (ISO date). */
+  date: string;
+}
+
+const WINS_KEY = "ad-empire-sf:wins:v1";
+
+export function loadWins(): Win[] {
+  try {
+    const w = JSON.parse(localStorage.getItem(WINS_KEY) ?? "[]") as Win[];
+    return Array.isArray(w) ? w.filter((x) => typeof x?.day === "number" && typeof x.productKey === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Records a paid-off run (once per run) and returns every win. */
+export function recordWin(brand: string, state: GameState): Win[] {
+  const wins = loadWins();
+  if (state.paidDay === undefined || wins.some((w) => w.seed === state.seed)) return wins;
+  const next = [
+    ...wins,
+    {
+      seed: state.seed,
+      productKey: state.productKey,
+      day: state.paidDay,
+      difficulty: state.difficulty,
+      brand,
+      date: new Date().toISOString().slice(0, 10),
+    },
+  ];
+  try {
+    localStorage.setItem(WINS_KEY, JSON.stringify(next));
+  } catch {
+    /* storage unavailable: the win just isn't remembered */
+  }
+  return next;
+}
+
+/** The fastest payoff per product. */
+export function bestDays(wins: Win[]): Map<string, Win> {
+  const m = new Map<string, Win>();
+  for (const w of wins) {
+    const b = m.get(w.productKey);
+    if (!b || w.day < b.day) m.set(w.productKey, w);
+  }
+  return m;
+}

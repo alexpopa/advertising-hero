@@ -3,7 +3,9 @@
  * plans earn with the whole team hired from day 1, and how three growth strategies do when
  * you start alone (hires, shops). A sanity check, not a full balance script.
  *
- * Usage: npm run report [-- product_key]
+ * Ends with the day each bot pays off the bank loan.
+ *
+ * Usage: npm run report [-- product_key]   (BOOSTS=1,1.2 npm run report -- none: loan only)
  */
 import { readFileSync } from "node:fs";
 import {
@@ -61,10 +63,15 @@ const plans: Record<string, Strategy> = {
   },
 };
 
-function play(w: World, plan: Strategy, seed: number, alone = false): GameState {
+/**
+ * One run of a strategy. Without `loan` the bank loan is left out (counted as paid on day 0),
+ * so the economy sections show 180 days of cash; with it, the run stops the day it's paid.
+ */
+function play(w: World, plan: Strategy, seed: number, alone = false, loan = false): GameState {
   let s = initGame(w, seed);
   if (!alone) s = { ...s, staff: { ooh: 3, digital: 3 } };
-  while (s.status === "playing") s = step(w, s, plan(w, s));
+  if (!loan) s = { ...s, paidDay: 0 };
+  while (s.status === "playing" && s.day < C.days) s = step(w, s, plan(w, s));
   return s;
 }
 
@@ -183,3 +190,49 @@ if (!only) {
   }
 }
 console.log(`\nStart cash ${usd(C.startCash)}, ${C.days} days, base overhead ${usd(C.fixedOverhead)}/day plus salaries and rent.`);
+// Human-ish proxy: finds each profitable zone on a random day in the first 60, wastes money on
+// 5 bad zones (Low digital) for the first 30 days, and only considers buying once a week.
+function humanish(seed: number): Strategy {
+  let rnd = seed * 9301 + 49297;
+  const r = () => ((rnd = (rnd * 9301 + 49297) % 233280) / 233280);
+  let found: number[] | null = null;
+  let bad: Set<number> | null = null;
+  const g = grow(15000, true);
+  return (w, s) => {
+    if (!found) {
+      found = w.zones.map(() => Math.floor(r() * 60));
+      const losers = w.zones.filter((z) => z.bestProfit <= 0).map((z) => z.index);
+      bad = new Set(Array.from({ length: 5 }, () => losers[Math.floor(r() * losers.length)]));
+    }
+    const acts = s.day % 7 === 0 ? g(w, s) : runBest(w, s);
+    return acts.flatMap((a) => {
+      if (a.type !== "setPlan") return a.type === "hire" || a.type === "openShop" ? [a] : [];
+      if (found![a.zone] > s.day) return bad!.has(a.zone) && s.day < 30 ? apply(a.zone, { ooh: 0, digital: 1 }) : apply(a.zone, { ooh: 0, digital: 0 });
+      return [a];
+    }).concat(s.day === 0 ? [...bad!].map((z) => apply(z, { ooh: 0, digital: 1 })).flat() : [])
+      .concat(s.day === 30 ? [...bad!].filter((z) => w.zones[z].bestProfit <= 0).map((z) => apply(z, { ooh: 0, digital: 0 })).flat() : []);
+  };
+}
+// The bank loan (DESIGN.md 6.18): the day each bot pays it off, over all products and 3 seeds.
+// `BOOSTS=1,1.2 npm run report -- none` compares sales boosts without the per-product report.
+if (only === "none" || !only) {
+  const boosts = (process.env.BOOSTS ?? String(C.salesBoost)).split(",").map(Number);
+  for (const boost of boosts) {
+    const rows: Record<string, number[]> = { "Grow when it pays (perfect)": [], "Realistic player": [], "Stay alone": [] };
+    for (const key of Object.keys(cats.products)) {
+      const w = buildWorld(zones, cats, key, boost);
+      for (const seed of [1, 2, 3]) {
+        const day = (st: Strategy) => play(w, st, seed, true, true).paidDay ?? Infinity;
+        rows["Grow when it pays (perfect)"].push(day(grow(15000, true)));
+        rows["Realistic player"].push(day(humanish(seed)));
+        rows["Stay alone"].push(day(growth["Stay alone (best digital Low plans)"]));
+      }
+    }
+    console.log(`\nBank loan ${usd(C.loan)} by day ${C.days}, sales boost ${boost} (20 products x 3 seeds):`);
+    for (const [k, v] of Object.entries(rows)) {
+      v.sort((a, b) => a - b);
+      const q = (f: number) => { const d = v[Math.floor(f * (v.length - 1))]; return Number.isFinite(d) ? String(d) : "-"; };
+      console.log(`  ${k.padEnd(30)} paid off ${String(v.filter(Number.isFinite).length).padStart(2)}/${v.length}   day 25th/median/75th ${q(0.25)}/${q(0.5)}/${q(0.75)}`);
+    }
+  }
+}

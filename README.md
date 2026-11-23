@@ -1,8 +1,8 @@
-# Ad Empire SF
+# Advertising Hero
 
 **Launch a brand and grow it by buying ads across San Francisco's real neighborhoods, where every neighborhood's value comes from an open map of what's actually there.**
 
-Ad Empire SF is a small tycoon game that runs in the browser. You pick a product, start with $5,000, and spend 180 game days deciding where your next ad dollar is worth the most. A gym-heavy corner of SoMa is great for protein powder and useless for baby gear. Downtown is packed with people, but its ads are priced to match. The quiet, cheap neighborhood with exactly your audience is the one worth finding.
+Advertising Hero is a small tycoon game that runs in the browser. You borrowed $500,000 to build your product and $50,000 of it is left. You have 180 game days to pay the bank back, and the way to do it is to work out where your next ad dollar is worth the most. A gym-heavy corner of SoMa is great for protein powder and useless for baby gear. Downtown is packed with people, but its ads are priced to match. The quiet, cheap neighborhood with exactly your audience is the one worth finding.
 
 > **Status: playable, not yet deployed.** The full game runs locally: start screen, map, buying ads, the 180-day run and the end screen. Next: putting it online, then balancing and polish. See [Roadmap](#roadmap).
 
@@ -13,7 +13,7 @@ Ad Empire SF is a small tycoon game that runs in the browser. You pick a product
 3. **Read the map:** color it by any of ~110 kinds of places (gyms, bars, pharmacies, hotels, schools…), alone or added together. Some places draw your buyers, some stores sell your product, some compete with it, and some just look relevant. Click a neighborhood to see what's there and what ads cost.
 4. **Buy ads:** for each neighborhood set **out-of-home** (billboards, bus shelters, posters: strongest in busy areas and near stores that sell you, priced at a downtown premium) and **digital** (targeted ads that follow where your buyers are, no downtown premium) separately to Off, Low, Medium or High. Each channel costs its own money and reaches its own people. Digital ads reach full strength in about a week and fade within days of stopping; out-of-home ads take about a month and linger for weeks. Both have diminishing returns; out-of-home ads also spill over a little into neighboring areas. Every campaign has a daily fee, so advertising everywhere is the fastest way to go broke.
 5. **Grow:** you start alone, able to buy only Low digital ads. Profit pays for hires: an out-of-home buyer, then senior and lead buyers in each channel, each unlocking the next level for good, at a signing fee and a daily salary. Or open your own shops: the price depends on the neighborhood (busy downtown spots cost the most), each brings walk-ins and more sales there for daily rent, and you can open up to three in one neighborhood, though each extra one adds less than the last.
-6. **Finish:** after 180 days you see your team and shops, your best and worst neighborhoods, and your cash over time. Run out of cash for three days and you're bankrupt.
+6. **Pay back the bank:** the day your cash reaches $500,000 the loan is paid automatically and you win. That day is your score, and your browser keeps your best day for each product. Afterwards you can keep playing with no deadline. Miss day 180, or run out of cash for three days, and the bank takes everything. The end screen shows your team and shops, your best and worst neighborhoods, and your cash over time.
 
 ## Where the numbers come from
 
@@ -46,6 +46,7 @@ The result is **76 neighborhoods** in about 220 KB of data, small enough to ship
 - **Neighborhood names are approximate.** Boundaries follow the nearest named point, not official lines, so a few areas are bigger or smaller than locals would draw them.
 - **Treasure Island isn't in the game.** Overture has no neighborhood name anywhere near it.
 - **Money needed a reason.** Early versions were a puzzle you solved in the first few weeks: once your good neighborhoods were running, extra cash had nothing to buy. Now you start alone with cheap digital ads, and profit pays for buyers who unlock stronger ads, and for shops of your own. I tried monthly profit goals (a star and a bonus each month) to set the pace and cut them: they were arbitrary numbers that didn't connect to any decision on the map. Saving up for the next hire or shop is the goal.
+- **One way to win: pay back the bank.** Making money had no finish line. I looked at how other tycoon games end (scenario targets with a deadline, star ratings, market share) and first considered "half of San Francisco knows your brand". I dropped it because it would reward advertising everywhere, which the rest of the game teaches you not to do. A loan does the opposite: $500,000 by day 180 explains the starting cash, the deadline and why the game ends, and it rewards exactly the skill the game is about. To tune it, I added a "realistic player" bot (finds good neighborhoods gradually, wastes money early, decides on hires only weekly) next to the perfect one, and raised sales in every neighborhood by 20% rather than lowering the target. Now a perfect run pays off around day 116, a realistic one wins a bit under half the time, and a player who never hires anyone can't win. The score is only the day you paid; nothing else counts.
 - **Shops are a bet on a place, not a power-up.** A shop in the right neighborhood pays for itself in a couple of months; in most neighborhoods it never does, and a second or third shop in the same place usually loses money because it pays full rent for half the extra sales. That makes "where do I open?" a real question instead of "always buy the shop".
 - **Numbers sized like a real small business.** $50,000 to start, buyers on roughly $75k–130k a year, storefronts at $3k–9k a month. Overture has no sales or rent data, so these are invented, but at this scale they read as plausible; earlier the same economy at a tenth of the size ($25/day salaries) felt like a toy.
 - **Ads build up like real ones, at two speeds.** Costs start the day you buy; sales build as people see the ads again and again (what marketers call adstock or carryover). Billboards and posters build over about a month and linger; targeted digital ads work within days and stop soon after you do. So doubling a campaign means a short dip before the extra sales arrive. Easy mode shows a ↗ with the profit you're heading for while ads are still building.
@@ -69,7 +70,7 @@ Needs Node.js.
 npm install
 npm run dev       # the game at http://localhost:5174
 npm test          # 155 tests for the game rules
-npm run report    # how a few simple strategies do over 180 days, per product
+npm run report    # how a few simple strategies do over 180 days, per product, and when bots pay off the loan
 ```
 
 ## Run the data pipeline

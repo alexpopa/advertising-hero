@@ -30,6 +30,7 @@ import {
   roles,
   steadyPressure,
   step,
+  keepPlaying,
   adCostPerDay,
   awareness,
   type Action,
@@ -57,6 +58,8 @@ function run(world: World, state: GameState, days: number, actions: Action[] = [
   for (let d = 1; d < days; d++) s = step(world, s);
   return s;
 }
+/** Tests of the ad economy with lots of cash: the loan counts as already paid, so the run doesn't end on day 1. */
+const noLoan = (s: GameState): GameState => ({ ...s, paidDay: 0, endless: true });
 /** Out-of-home ads at a level in every zone. */
 const setAll = (world: World, level: Level): Action[] =>
   world.zones.map((z) => ({ type: "setPlan", zone: z.index, plan: { ooh: level } }));
@@ -108,8 +111,8 @@ describe("reach", () => {
 });
 
 describe("world", () => {
-  it.each(PRODUCTS)("%s: calibrated so perfect play makes the target profit per day", (key) => {
-    const w = buildWorld(ZONES, CATS, key);
+  it.each(PRODUCTS)("%s: calibrated so perfect play makes the target profit per day (before the sales boost)", (key) => {
+    const w = buildWorld(ZONES, CATS, key, 1);
     const perfect = w.zones.reduce((a, z) => a + Math.max(0, z.bestProfit), 0) - C.calibrationOverhead;
     expect(perfect).toBeCloseTo(C.perfectDailyProfit, 0);
   });
@@ -207,7 +210,8 @@ describe("game", () => {
   });
 
   it("finishes after the last day and then stops", () => {
-    const s = run(world, { ...initGame(world, 6), cash: 1e6 }, C.days, [ooh(best.index, 2)]);
+    // Too little to repay the loan: the deadline ends it.
+    const s = run(world, { ...initGame(world, 6), cash: 1e5 }, C.days, [ooh(best.index, 2)]);
     expect(s.day).toBe(C.days);
     expect(s.history).toHaveLength(C.days);
     expect(["finished", "bankrupt"]).toContain(s.status);
@@ -245,8 +249,8 @@ describe("balance guards (DESIGN.md 8 targets)", () => {
     const w = buildWorld(ZONES, CATS, key);
     const perfect = run(w, initGame(w, 12), C.days, w.zones.flatMap((z) => apply(z.index, z.best)));
     const blanket = run(w, initGame(w, 12), C.days, setAll(w, 1));
-    expect(perfect.status).toBe("finished");
-    expect(perfect.cash).toBeGreaterThan(C.startCash * 5);
+    expect(perfect.status).toBe("paid");
+    expect(perfect.cash + C.loan).toBeGreaterThan(C.startCash * 5);
     expect(perfect.history[19].cash).toBeLessThan(C.startCash * 4);
     expect(blanket.status).toBe("bankrupt");
   });
@@ -376,7 +380,7 @@ describe("stockists and ad formats", () => {
       reach(s.pressure[z.index]) / reach(steadyPressure(2)),
       reach(s.pressureDigital[z.index]) / reach(steadyPressure(2)),
     ];
-    const on = run(w, { ...initGame(w, 3), cash: 1e9 }, 10, apply(z.index, { ooh: 2, digital: 2 }));
+    const on = run(w, noLoan({ ...initGame(w, 3), cash: 1e9 }), 10, apply(z.index, { ooh: 2, digital: 2 }));
     const [ooh10, dig10] = share(on);
     expect(dig10).toBeGreaterThan(0.85);
     expect(ooh10).toBeLessThan(0.75);
@@ -462,8 +466,8 @@ describe("recommendations (Easy mode)", () => {
       const r = recommend(w, s, 1)[0];
       s = step(w, s, r && s.day % 3 === 0 ? apply(r.zone, r.to) : []);
     }
-    expect(s.status).toBe("finished");
-    expect(s.cash).toBeGreaterThan(C.startCash);
+    expect(["paid", "finished"]).toContain(s.status);
+    expect(s.cash + (s.paidDay ? C.loan : 0)).toBeGreaterThan(C.startCash);
   });
 });
 
@@ -516,7 +520,7 @@ describe("team and shops (DESIGN.md 6.15)", () => {
   });
 
   it("hires go up the ladder in order, stop at the lead, and need the cash", () => {
-    let s = { ...initGameAlone(w, 1), cash: 1e6 };
+    let s = noLoan({ ...initGameAlone(w, 1), cash: 1e6 });
     for (let i = 0; i < 5; i++) s = hire(s, "ooh");
     expect(s.staff.ooh).toBe(3);
     expect(nextHire(s.staff, "ooh")).toBeNull();
@@ -530,7 +534,7 @@ describe("team and shops (DESIGN.md 6.15)", () => {
   });
 
   it("hire actions work inside step too", () => {
-    const s = step(w, { ...initGameAlone(w, 1), cash: 1e6 }, [{ type: "hire", channel: "ooh" }, ...apply(best.index, { ooh: 1, digital: 1 })]);
+    const s = step(w, noLoan({ ...initGameAlone(w, 1), cash: 1e6 }), [{ type: "hire", channel: "ooh" }, ...apply(best.index, { ooh: 1, digital: 1 })]);
     expect(s.staff.ooh).toBe(1);
     expect(s.plans[best.index]).toEqual({ ooh: 1, digital: 1 });
   });
@@ -540,7 +544,7 @@ describe("team and shops (DESIGN.md 6.15)", () => {
     const [quiet, busy] = [byBusy[0].index, byBusy[byBusy.length - 1].index];
     expect(shopCost(w, busy)).toBeGreaterThan(shopCost(w, quiet));
     expect(shopRent(w, busy)).toBeGreaterThan(shopRent(w, quiet));
-    let s = { ...initGameAlone(w, 1), cash: 1e7 };
+    let s = noLoan({ ...initGameAlone(w, 1), cash: 1e7 });
     for (let k = 1; k <= C.shop.maxPerZone; k++) {
       const before = s.cash;
       s = openShop(w, s, best.index);
@@ -571,7 +575,7 @@ describe("team and shops (DESIGN.md 6.15)", () => {
   });
 
   it("a shop brings walk-in customers with no ads, close to its estimate", () => {
-    let s = openShop(w, { ...initGameAlone(w, 1), cash: 1e6 }, best.index);
+    let s = openShop(w, noLoan({ ...initGameAlone(w, 1), cash: 1e6 }), best.index);
     s = run(w, s, 120);
     expect(s.lastDay.customers[best.index]).toBeGreaterThan(0);
     // Average over the next 30 days, compared with the steady-state estimate.
@@ -602,5 +606,42 @@ describe("team and shops (DESIGN.md 6.15)", () => {
     const s = initGameAlone(w, 1);
     expect(hireGain(w, s, "digital")!).toBeGreaterThan(0);
     expect(hireGain(w, { ...s, staff: { ooh: 3, digital: 3 } }, "digital")).toBeNull();
+  });
+});
+
+describe("the bank loan (DESIGN.md 6.18)", () => {
+  const w = buildWorld(ZONES, CATS, "cold_brew");
+
+  it("is paid back automatically the day cash reaches it, and the run stops there", () => {
+    const s = step(w, { ...initGame(w, 1), cash: C.loan + 10000 });
+    expect(s.status).toBe("paid");
+    expect(s.paidDay).toBe(1);
+    expect(s.cash).toBeLessThan(10000);
+    expect(s.cash).toBeGreaterThan(0);
+    expect(step(w, s)).toBe(s);
+  });
+
+  it("isn't paid while cash is short of it", () => {
+    const s = step(w, { ...initGame(w, 1), cash: C.loan - 10000 });
+    expect(s.status).toBe("playing");
+    expect(s.paidDay).toBeUndefined();
+  });
+
+  it("after paying, you can play on past the deadline, and it is never charged twice", () => {
+    let s = keepPlaying(step(w, { ...initGame(w, 2), cash: C.loan * 3 }));
+    expect(s.status).toBe("playing");
+    expect(s.endless).toBe(true);
+    s = run(w, s, C.days + 20, w.zones.flatMap((z) => apply(z.index, z.best)));
+    expect(s.status).toBe("playing");
+    expect(s.day).toBe(C.days + 21);
+    expect(s.paidDay).toBe(1);
+    expect(s.cash).toBeGreaterThan(C.loan);
+  });
+
+  it("a perfect plan can pay it off within the run; never hiring anyone can't", () => {
+    const perfect = run(w, initGame(w, 3), C.days, w.zones.flatMap((z) => apply(z.index, z.best)));
+    expect(perfect.status).toBe("paid");
+    const alone = run(w, initGameAlone(w, 3), C.days, w.zones.flatMap((z) => apply(z.index, { ooh: 0, digital: z.est[0][1].profit > 0 ? 1 : 0 })));
+    expect(alone.paidDay).toBeUndefined();
   });
 });

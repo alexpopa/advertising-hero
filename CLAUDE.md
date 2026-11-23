@@ -1,6 +1,6 @@
-# Ad Empire SF — instructions for Claude
+# Advertising Hero — instructions for Claude
 
-Ad Empire SF is Alexandru's browser tycoon game: grow a brand by buying ads across San Francisco's real neighborhoods, valued with Overture Maps data. Work started in a Claude session on a different computer; everything decided is in these files:
+Advertising Hero (called Ad Empire SF until 2026-11-23) is Alexandru's browser tycoon game: grow a brand by buying ads across San Francisco's real neighborhoods, valued with Overture Maps data. Work started in a Claude session on a different computer; everything decided is in these files:
 
 - `STATUS.md` — decisions so far, progress, open questions, how to run things. **Read first.**
 - `DESIGN.md` — the full v1 game design, scoring model, data pipeline, architecture and build order, plus what changed after the first real numbers (section 6.11).

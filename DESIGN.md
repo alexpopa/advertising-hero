@@ -1,4 +1,4 @@
-# Ad Empire SF — v1 design
+# Advertising Hero — v1 design
 
 > Working title. One-sentence pitch: **Launch a brand and grow it by buying ads across San Francisco's real neighborhoods, where every neighborhood's value comes from Overture's map of what is actually there.**
 
@@ -324,6 +324,28 @@ Playtest: following every Easy suggestion still lost ~$1,000/day at day 12, and 
 - **Easy: ↗ in the top bar** next to yesterday's profit while any campaign is below 95% of its full-strength reach, showing profit per day once everything has built up (after running costs). The launch tray's expected profit now also subtracts running costs, so the two numbers agree.
 
 Month 1 is now much gentler than the "first month is a squeeze" intent of 6.1/6.14. Kept on purpose: playtesting preferred the easier start.
+
+### 6.18 The win: pay back the bank (2026-11-23)
+
+**The problem.** Making money had no finish line: the run just stopped on day 180 with a number.
+
+**Options considered.** Tycoon games mostly end on a target with a deadline (RollerCoaster Tycoon scenarios, Capitalism's profit and market-share goals) or a star rating (Two Point Hospital). First idea: "half of San Francisco knows your brand" (people-weighted awareness). Rejected: profitable play reaches only 21–38% of SF, so winning would mean running ads in neighborhoods that lose money, which the rest of the game teaches you not to do. A plain cash target ("make $500k") rewards the right skill but has no reason behind the number.
+
+**The rule.** You borrowed `C.loan` ($500,000) to build the product; `startCash` ($50,000) is what's left. The day cash reaches $500,000 it's paid back automatically (cash drops by $500,000), the run stops (`status: "paid"`, `paidDay` set) and you've won. The score is `paidDay`, nothing else. Reach day 180 unpaid (`"finished"`) or go bankrupt and the bank takes everything. After paying you can **keep playing** (`keepPlaying`, `endless: true`): no deadline, only bankruptcy ends it. Wins are kept in the browser (`ad-empire-sf:wins:v1`: product, day, difficulty, brand, date); the product picker and results card show the best day per product.
+
+**Tuning.** Rather than lower the target, every neighborhood sells more: `C.salesBoost` multiplies customers after calibration, leaving ad prices alone (calibration targets in 6.11 still describe the economy before the boost; `buildWorld(…, 1)` gives the unboosted world). `npm run report` now ends with each bot's payoff day; a new "realistic player" bot finds each profitable neighborhood on a random day in the first two months, runs 5 losing neighborhoods at Low digital for the first month, and only considers a hire or shop once a week. 20 products × 3 seeds:
+
+| Sales boost | Perfect grower pays off | Realistic player | Never hires |
+|---|---|---|---|
+| ×1.0 | 51/60, median day 145 | 12/60 | 0/60 |
+| ×1.1 | 60/60, day 127 | 19/60 | 0/60 |
+| ×1.15 | 60/60, day 121 | 21/60 | 0/60 |
+| **×1.2 (chosen)** | **60/60, day 116** | **26/60** | **0/60** |
+| ×1.25 | 60/60, day 111 | 30/60 | 4/20 |
+
+×1.2 is the most generous setting where staying alone still can't win. Note that +20% sales is much more than +20% profit, because ad prices, fees and salaries don't rise: perfect play before running costs goes from $3,000 to ~$5,000 a day, the growth bot's late-game profit from ~$8,300 to ~$13,600 a day, and a few more neighborhoods become worth advertising in. The realistic bot is a guess at a human; how hard this is by hand, especially on Hard, is untested.
+
+**On screen.** A thin green bar along the bottom of the top pill fills with cash toward $500,000 (its space is always reserved; hidden once paid). The menu's one-line pitch and the first how-to-play point tell the story. Results: "🏦 Brand paid off the bank on day N" with Keep playing / Play again; "Day 180: the bank takes everything" with how far you got; the cash chart has a dashed $500,000 line.
 
 ## 7. Data pipeline (in the repo)
 

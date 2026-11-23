@@ -80,7 +80,13 @@ export function productLabels(product: ProductData): string[] {
   return [...roles(product).keys()];
 }
 
-export function buildWorld(zonesData: ZoneData[], categories: CategoriesData, productKey: string): World {
+export function buildWorld(
+  zonesData: ZoneData[],
+  categories: CategoriesData,
+  productKey: string,
+  /** Overrides C.salesBoost (tests and balance scripts). */
+  salesBoost: number = C.salesBoost,
+): World {
   const raw = categories.products[productKey];
   if (!raw) throw new Error(`Unknown product: ${productKey}`);
   const product: ProductData = { ...raw, stockists: raw.stockists ?? {}, decoys: raw.decoys ?? [], hints: raw.hints ?? [] };
@@ -228,7 +234,7 @@ export function buildWorld(zonesData: ZoneData[], categories: CategoriesData, pr
   }
   const moneyScale = (lo + hi) / 2;
   for (const z of zones) {
-    z.pmax *= moneyScale;
+    z.pmax *= moneyScale * salesBoost;
     z.price *= moneyScale;
     z.priceDigital *= moneyScale;
   }

@@ -36,6 +36,7 @@ import {
 import { usd } from "./scale";
 import { popsForDay, type Pop } from "./pops";
 import { hintsSeen, markHintsSeen } from "./storage";
+import { useExclusivePanel } from "./panels";
 
 /** Real seconds per game day at 1x. */
 const SECONDS_PER_DAY = 2;
@@ -100,6 +101,8 @@ export function GameHud({
   const tabs: Tab[] = easy ? ["suggestions", "campaigns", "know"] : ["campaigns", "know"];
   const [teamOpen, setTeamOpen] = useState(false);
   const hud = useRef<HTMLDivElement>(null);
+  useExclusivePanel("menu", tab !== null, () => setTab(null));
+  useExclusivePanel("team", teamOpen, () => setTeamOpen(false));
 
   // The clock.
   useEffect(() => {
@@ -190,6 +193,15 @@ export function GameHud({
     <>
       <div className="hud" ref={hud}>
         <div className="pill">
+          {/* The bank loan: a thin bar along the pill's bottom edge, filling with cash. */}
+          <span
+            className="loan-bar"
+            style={{ visibility: state.paidDay === undefined ? "visible" : "hidden" }}
+            role="img"
+            aria-label={`Bank loan: ${usd(Math.max(0, state.cash))} of ${usd(C.loan)}`}
+          >
+            <span style={{ width: `${Math.min(100, Math.max(0, (state.cash / C.loan) * 100))}%` }} />
+          </span>
           <button
             className={"pill-brand" + (tab ? " open" : "")}
             onClick={() => setTab((t) => (t ? null : tabs[0]))}
@@ -206,9 +218,9 @@ export function GameHud({
           <span className="pill-sep" />
           <span className="pill-stat" title="Day">
             <span className="muted">Day</span> {state.day}
-            <span className="muted of-days">/{C.days}</span>
+            {!state.endless && <span className="muted of-days">/{C.days}</span>}
           </span>
-          <span className={"pill-stat" + (state.cash < 0 ? " neg" : "")} title="Cash">
+          <span className={"pill-stat" + (state.cash < 0 ? " neg" : "")} title={state.paidDay === undefined ? `Cash · bank loan ${usd(C.loan)}, due day ${C.days}` : "Cash"}>
             {usd(state.cash)}
           </span>
           {yesterday && (
@@ -308,6 +320,10 @@ export function GameHud({
           </p>
           <ol>
             <li>
+              <b>Pay back the bank:</b> {usd(C.loan)} by day {C.days}. It's paid automatically the day your cash reaches
+              it (the green line under the top bar), and that's a win. The day you pay is your score.
+            </li>
+            <li>
               {easy ? (
                 <>
                   <b>Colors show where your product fits.</b> Darker blue means a better return per ad dollar.
@@ -364,6 +380,7 @@ export function GameHud({
           world={world}
           state={state}
           zoneOpen={!!zoneOpen}
+          covered={teamOpen || tab !== null}
           onSelect={(z) => {
             onSelect(z);
             setTab(null);
@@ -425,6 +442,7 @@ function PlanTray({
   world,
   state,
   zoneOpen,
+  covered,
   onSelect,
   onRemove,
   onLaunch,
@@ -432,6 +450,8 @@ function PlanTray({
   world: World;
   state: GameState;
   zoneOpen: boolean;
+  /** The team card or brand menu is open: on phones the tray hides under it. */
+  covered?: boolean;
   onSelect: (zone: number) => void;
   onRemove: (zone: number) => void;
   onLaunch: () => void;
@@ -449,7 +469,7 @@ function PlanTray({
   const n = planned.length;
 
   return (
-    <section className={"float-card plan-tray" + (zoneOpen ? " behind-panel" : "")} aria-label="Your plan">
+    <section className={"float-card plan-tray" + (zoneOpen ? " behind-panel" : "") + (covered ? " covered" : "")} aria-label="Your plan">
       {n === 0 ? (
         <span className="plan-empty muted small">
           {fresh ? "Click neighborhoods to plan ads, then launch them together" : "No campaigns running"}
