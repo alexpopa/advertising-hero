@@ -214,7 +214,6 @@ function AdControls({
   const customers = state.lastDay.customers[zone];
   const profit = zoneDayProfit(state, zone);
   const active = level > 0 || customers > 0.05;
-  const priceUp = state.events.some((e) => e.kind === "priceUp" && e.zone === zone);
   const disabled = state.status !== "playing";
   const learning = state.difficulty !== "easy" && unknownCount(world, state.known) > 0;
   const shown = estimatesShown(state, zone);
@@ -282,7 +281,6 @@ function AdControls({
           )}
         </p>
       )}
-      {priceUp && <p className="small warn">Ad prices are up 25% here for a few days.</p>}
       {active && state.day > 0 && (
         <dl className="zone-stats">
           <div>

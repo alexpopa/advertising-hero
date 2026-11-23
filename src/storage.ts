@@ -35,15 +35,25 @@ export function loadGame(): SavedGame | null {
  * (2026-11-23) called out-of-home "local" and had no digital awareness track.
  */
 function migrate(s: Record<string, unknown>): GameState | null {
-  if (s.version === 4) return s as unknown as GameState;
+  if (s.version === 4) {
+    // Events were removed on 2026-11-23; drop their fields from older saves.
+    const { events: _e, nextEventDay: _n, eventLog: _l, ...rest4 } = s;
+    void _e;
+    void _n;
+    void _l;
+    return rest4 as unknown as GameState;
+  }
   if (s.version !== 1 && s.version !== 2 && s.version !== 3) return null;
   const product = (categories as unknown as CategoriesData).products[s.productKey as string];
   if (!product) return null;
   const n = (s.levels as number[]).length;
   const old = s.formats as string[] | undefined;
-  const { schedules: _a, pressureOnline: _b, ...rest } = s as Record<string, unknown>;
+  const { schedules: _a, pressureOnline: _b, events: _e, nextEventDay: _n, eventLog: _l, ...rest } = s as Record<string, unknown>;
   void _a;
   void _b;
+  void _e;
+  void _n;
+  void _l;
   return {
     ...(rest as unknown as GameState),
     version: 4,

@@ -1,19 +1,18 @@
 /**
  * What floats over the map during a run. Only one thing is always there: a small pill with
  * the brand, day, cash and the clock. Clicking the brand opens a dropdown with campaigns
- * and events (and suggestions on Easy). What the map shows lives in its own button
+ * and what you know (and suggestions on Easy). What the map shows lives in its own button
  * (LayersPanel.tsx). Toasts, the low-cash warning and the
  * first-run hints come and go on their own.
  */
 import { useEffect, useRef, useState } from "react";
-import { Campaigns, Events, Knowledge, Suggestions } from "./Lists";
+import { Campaigns, Knowledge, Suggestions } from "./Lists";
 import {
   C,
   CHANNEL_NAMES,
   LEVEL_NAMES,
   adCost,
   channelsOf,
-  describeEvent,
   estimate,
   labelName,
   roleSentence,
@@ -30,12 +29,11 @@ import { hintsSeen, markHintsSeen } from "./storage";
 const SECONDS_PER_DAY = 2;
 const SPEEDS = [1, 2, 4] as const;
 
-type Tab = "suggestions" | "campaigns" | "know" | "events";
+type Tab = "suggestions" | "campaigns" | "know";
 const TAB_NAMES: Record<Tab, string> = {
   suggestions: "Suggestions",
   campaigns: "Campaigns",
   know: "What you know",
-  events: "Events",
 };
 
 interface Toast {
@@ -85,7 +83,7 @@ export function GameHud({
   const easy = state.difficulty === "easy";
   const speed = SPEEDS[speedIx];
   const ticking = running && playing && !paused;
-  const tabs: Tab[] = easy ? ["suggestions", "campaigns", "know", "events"] : ["campaigns", "know", "events"];
+  const tabs: Tab[] = easy ? ["suggestions", "campaigns", "know"] : ["campaigns", "know"];
   const hud = useRef<HTMLDivElement>(null);
 
   // The clock.
@@ -118,18 +116,6 @@ export function GameHud({
     window.addEventListener("pointerdown", onDown);
     return () => window.removeEventListener("pointerdown", onDown);
   }, [tab]);
-
-  // A toast for each new event.
-  const seenEvents = useRef(state.eventLog.length);
-  useEffect(() => {
-    const fresh = state.eventLog.slice(seenEvents.current);
-    seenEvents.current = state.eventLog.length;
-    if (!fresh.length) return;
-    const added = fresh.map((e) => ({ id: Math.random(), zone: e.zone, ...describeEvent(world, e) }));
-    setToasts((t) => [...t, ...added].slice(-3));
-    const ids = added.map((a) => a.id);
-    setTimeout(() => setToasts((t) => t.filter((x) => !ids.includes(x.id))), 8000);
-  }, [state.eventLog, world]);
 
   // A toast for each new insight.
   const seenInsights = useRef(state.insights.length);
@@ -189,7 +175,7 @@ export function GameHud({
             className={"pill-brand" + (tab ? " open" : "")}
             onClick={() => setTab((t) => (t ? null : tabs[0]))}
             aria-expanded={tab !== null}
-            aria-label={`${brand}: open campaigns and events`}
+            aria-label={`${brand}: open campaigns`}
           >
             <span aria-hidden>{world.product.icon}</span>
             <b>{brand}</b>
@@ -258,7 +244,6 @@ export function GameHud({
               {tab === "suggestions" && <Suggestions world={world} state={state} onSelect={select} onSetPlan={setPlan} />}
               {tab === "campaigns" && <Campaigns world={world} state={state} onSelect={select} onSetPlan={setPlan} />}
               {tab === "know" && <Knowledge world={world} state={state} onSelect={select} />}
-              {tab === "events" && <Events world={world} state={state} onSelect={select} />}
             </div>
             <footer className="dropdown-foot">
               <button

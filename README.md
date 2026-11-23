@@ -12,7 +12,7 @@ Ad Empire SF is a small tycoon game that runs in the browser. You pick a product
 2. **Pick a difficulty:** **Easy** shows everything: which places draw your buyers, which stores carry you, who you're up against, plus suggestions. **Normal** tells you who your buyers are and one or two places that matter. **Hard** gives you only a line about your buyers. On Normal and Hard you learn one new thing every time you run ads in a neighborhood for two weeks ("Juice bars compete with you: they take sales nearby").
 3. **Read the map:** color it by any of ~110 kinds of places (gyms, bars, pharmacies, hotels, schools…), alone or added together. Some places draw your buyers, some stores sell your product, some compete with it, and some just look relevant. Click a neighborhood to see what's there and what ads cost.
 4. **Buy ads:** for each neighborhood tick **out-of-home** (billboards, bus shelters, posters: strongest in busy areas and near stores that sell you, priced at a downtown premium), **digital** (targeted ads that follow where your buyers are, no downtown premium), both, or neither, and pick how hard they run (Low, Medium, High). Each ticked channel costs its own money and reaches its own people. Ads take about a month to reach full strength, have diminishing returns and fade after you stop; out-of-home ads also spill over a little into neighboring areas. Every campaign has a daily fee, so advertising everywhere is the fastest way to go broke.
-5. **Earn and reinvest:** customers arrive from where your ads run. Cut what loses money, expand what works, and survive events like street fairs, rainy weeks and rival campaigns.
+5. **Earn and reinvest:** customers arrive from where your ads run. Cut what loses money, expand what works.
 6. **Finish:** after day 90 you see your net worth, your best and worst neighborhoods, and your cash over time. Run out of cash for three days and you're bankrupt.
 
 ## Where the numbers come from
@@ -28,7 +28,7 @@ The map comes from [Overture Maps](https://overturemaps.org/), an open dataset o
 | Busyness (raises ad prices, helps out-of-home ads) | transit stops and overall place density |
 | Example businesses in the "why" panel | real place names |
 
-Overture has no sales, rent or foot-traffic figures, so the economy itself (prices, purchase rates, events) is invented. Each product is calibrated so that it's equally winnable, and the map data decides where the money is. The inputs are real, and the game always shows why a neighborhood scores the way it does. Full scoring model: [DESIGN.md](DESIGN.md).
+Overture has no sales, rent or foot-traffic figures, so the economy itself (prices, purchase rates) is invented. Each product is calibrated so that it's equally winnable, and the map data decides where the money is. The inputs are real, and the game always shows why a neighborhood scores the way it does. Full scoring model: [DESIGN.md](DESIGN.md).
 
 ## How neighborhoods are made
 
@@ -48,6 +48,7 @@ The result is **76 neighborhoods** in about 220 KB of data, small enough to ship
 - **No shops of your own.** Your brand sells online and through other people's stores; there's no property, staff or inventory. Those would double the scope without making the core decision more interesting.
 - **Difficulty changes what you know, not the numbers.** The economy is the same on every level. Harder levels hide which places matter, and you find out by advertising. That keeps the map honest: every clue is real Overture data.
 - **Some places are red herrings on purpose.** Juice bars look like protein buyers but compete with you; condos look like laundry customers but have washers. Which place does what is a design choice for each product, kept in one file (`scripts/categories.json`), not a claim about the real world.
+- **No random events for now.** Street fairs, rival campaigns and price spikes landed in random neighborhoods, usually ones you weren't advertising in, and were over before slow-building ads could react. They added noise, not decisions, so they're out until they can be made to matter.
 - **Two ad channels you can stack, each with its own job.** Earlier versions had up to four formats plus a weekly schedule per campaign; they balanced, but every neighborhood became three decisions. Then a cut-down version made one channel a cheaper copy of the other that never won, which was pointless. Now out-of-home (the industry term for billboards and posters) follows foot traffic and stores, digital follows your buyers with no downtown premium, and the best neighborhoods are worth both.
 - **One city.** San Francisco keeps the data small and lets the balance be tuned against one map.
 - **No accounts or leaderboards.** Progress is saved in your browser, so there's no server to run.
@@ -91,7 +92,7 @@ python scripts/build_zones.py    # writes public/data/
 - [ ] Balance script (bots play many runs to tune the economy)
 - [x] Map with fit colors and a "why this neighborhood" panel
 - [x] Game loop: ad buying, campaigns, Easy-mode suggestions
-- [x] Start and end screens (with Easy / Hard), hints, events
+- [x] Start and end screens, hints
 - [ ] Polish and deploy
 
 Later:

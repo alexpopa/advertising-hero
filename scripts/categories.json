@@ -297,8 +297,5 @@
     { "group": "Visitors", "labels": ["hotel", "hostel", "museum", "historic_site", "art_gallery", "tour_operator", "sightseeing_tour_agency", "souvenir_store"] },
     { "group": "Work & home", "labels": ["corporate_or_business_office", "b2b_office_and_professional_service", "coworking_space", "apartment", "condominium", "laundromat", "dry_cleaning"] }
   ],
-  "_dropped": "campus and kindergarten removed 2026-11-20: 0 matching SF places in release 2026-11-18.0.",
-  "events": {
-    "street_fair": ["event_venue", "festival_venue", "park"]
-  }
+  "_dropped": "campus and kindergarten removed 2026-11-20: 0 matching SF places in release 2026-11-18.0."
 }

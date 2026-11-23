@@ -260,8 +260,6 @@ export function buildWorld(zonesData: ZoneData[], categories: CategoriesData, pr
   });
   percentiles(roi).forEach((p, i) => (zones[i].score = Math.round(p * 100)));
 
-  const count = (z: ZoneData, labels: string[]) => labels.reduce((a, l) => a + (z.n[l] ?? 0), 0);
-  const fairLabels = categories.events?.street_fair ?? ["event_venue", "festival_venue", "park"];
   return {
     productKey,
     product,
@@ -269,11 +267,6 @@ export function buildWorld(zonesData: ZoneData[], categories: CategoriesData, pr
     moneyScale,
     zones,
     byId: new Map(zones.map((z) => [z.id, z])),
-    eventWeights: {
-      streetFair: zonesData.map((z) => count(z, fairLabels)),
-      competitor: zones.map((z) => z.competition),
-      busyness: zones.map((z) => z.busyness),
-    },
   };
 }
 

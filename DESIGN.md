@@ -15,7 +15,7 @@
 - An online-only brand: no storefronts, no property.
 - 6 product types to pick from (section 5).
 - Ads bought per neighborhood at 4 levels (Off / Low / Medium / High).
-- Daily income, overhead, a bit of randomness, occasional events.
+- Daily income, overhead, a bit of randomness. (Occasional events were cut on 2026-11-23, see 6.8.)
 - Two difficulty modes, chosen at the start, **Hard by default**. Easy adds top-5 recommendations (where to place ads, with plain-language reasons). Hard shows no recommendations; the player reads the map and works it out.
 - A 180-day run (90 until 2026-11-23, see 6.14) with an end-of-game summary. Progress saved in the browser.
 
@@ -134,7 +134,7 @@ Place filtering: `operating_status` ≠ `permanently_closed`/`temporarily_closed
 
 ### 6.6 Daily result
 - **Brand awareness** multiplier: `brand = 1 + 0.02 · (zones with ρ > 0.5)`, capped at 1.25. Being in many places helps a bit everywhere.
-- **Customers** `cust_z = Pmax · ρ · brand · noise_z · eventMult_z`, where `noise_z` is drawn from a seeded normal distribution with mean 1 and sd 0.08, clamped to 0.75–1.25.
+- **Customers** `cust_z = Pmax · ρ · brand · noise_z` (events were removed 2026-11-23, 6.8), where `noise_z` is drawn from a seeded normal distribution with mean 1 and sd 0.08, clamped to 0.75–1.25.
 - **Revenue** = Σ cust_z · orderValue · margin.
 - **Costs** = Σ ad spend + overhead, where overhead = $120/day + 10% of revenue (rent, fulfillment, staff, all rolled into one line).
 - **Profit/day** = revenue − costs. Can be negative.
@@ -144,7 +144,11 @@ Place filtering: `operating_status` ≠ `permanently_closed`/`temporarily_closed
 - **Recommendations (Easy only):** for every zone and every one-step change (Off→Low, Low→Med, Med→High, and downgrades), compute the steady-state Δprofit/day. Show the 5 best positive ones. Downgrades appear when a campaign loses money ("Cut High ads in Marina: saves $32/day").
 - **Reasons** shown with each: the two demand signals contributing most to Fit, with real counts ("31 gyms and fitness studios"), the competition line ("only 2 sporting-goods stores"), and the price line ("cheaper than 70% of SF"). Text comes from the numbers above, not hand-written per zone.
 
-### 6.8 Events (roughly every 8–12 days, seeded)
+### 6.8 Events (removed 2026-11-23)
+
+*Removed for now.* Events landed in random neighborhoods, usually ones the player wasn't advertising in, so they mostly did nothing; at 2–5 days they ended before slow-building campaigns could respond; and they asked for no decision. If they come back: favor neighborhoods where the player advertises, last weeks not days, and offer a choice ("A rival launched in Mission. Match their spend?"). The original design, for reference:
+
+
 | Event | Effect | Data link |
 |---|---|---|
 | Street fair in [zone] | +40% customers there for 2 days | zone chosen weighted by event_venue + festival_venue + park counts |
@@ -248,7 +252,7 @@ Playtest finding: with ad decay 0.9, a campaign on both channels at High reached
 - **Ad decay 0.93/day:** about 2/3 of full strength after 2 weeks and ~92% after 5 weeks; stopped ads fade over weeks. Reach scale is tied to the decay (`1.6 / (1 − decay)`) so each level's full-strength reach is unchanged.
 - **180 days** (six months), with days at 2 s instead of 3 s at 1×: about 6 minutes per run at 1×.
 - **Start cash $5,000** (was $3,000): the money-losing build-up now lasts weeks, and at $3,000 perfect play dipped to $0 and some runs went bankrupt. At $5,000 perfect play's lowest point across all 20 products is about $2,000, the same margin as before.
-- **Insights every 14 days of ads** per neighborhood (was 7), and Normal unlocks estimates at the same point. **Events every 12–18 days** (was 8–12).
+- **Insights every 14 days of ads** per neighborhood (was 7), and Normal unlocks estimates at the same point. Events were briefly set to every 12–18 days, then removed (6.8).
 
 Balance (median of 5 seeds, all 20 products): perfect play $75k–91k; Easy's top suggestion daily $63k–83k, lowest cash ≥ ~$2k; Medium out-of-home in the top 10 by score $42k–72k; Low or High everywhere bankrupt within a week; doing nothing bankrupt on day 44.
 

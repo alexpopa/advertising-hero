@@ -112,7 +112,4 @@ export const C = {
   /** Game over after this many days in a row with cash below $0. */
   bankruptDays: 3,
 
-  /** Days between events (inclusive range). */
-  eventGapMin: 12,
-  eventGapMax: 18,
 } as const;

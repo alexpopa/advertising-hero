@@ -212,15 +212,10 @@ describe("game", () => {
     expect(run(world, restored, 20)).toEqual(run(world, mid, 20));
   });
 
-  it("events happen every 8-12 days", () => {
-    const s = run(world, initGame(world, 8), C.days, [{ type: "setLevel", zone: best.index, level: 2 }]);
-    const days = s.eventLog.map((e) => e.day);
-    expect(days.length).toBeGreaterThanOrEqual(6);
-    expect(days[0]).toBeGreaterThanOrEqual(C.eventGapMin);
-    for (let i = 1; i < days.length; i++) {
-      expect(days[i] - days[i - 1]).toBeGreaterThanOrEqual(C.eventGapMin);
-      expect(days[i] - days[i - 1]).toBeLessThanOrEqual(C.eventGapMax);
-    }
+  it("ad costs never change from day to day (no random price events)", () => {
+    const s = run(world, initGame(world, 8), 60, [{ type: "setLevel", zone: best.index, level: 2 }]);
+    const spend = s.history.map((d) => d.adSpend);
+    expect(Math.max(...spend) - Math.min(...spend)).toBeLessThan(1e-9);
   });
 });
 

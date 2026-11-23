@@ -60,8 +60,6 @@ def used_labels() -> dict[str, set[str]]:
         comp |= set(p["competitors"])
     for g in CATS.get("layers", []):
         labels |= set(g["labels"])
-    for ls in CATS.get("events", {}).values():
-        labels |= set(ls)
     return {"all": labels, "competitors": comp}
 
 

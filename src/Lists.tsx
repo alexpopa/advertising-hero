@@ -1,11 +1,10 @@
-/** The lists in the in-game dropdown: suggestions (Easy), campaigns, what you know, and events. */
+/** The lists in the in-game dropdown: suggestions (Easy), campaigns, and what you know. */
 import { useState } from "react";
 import {
   C,
   FORMAT_NAMES,
   LEVEL_NAMES,
   ROLE_TITLES,
-  describeEvent,
   labelName,
   recommend,
   roleSentence,
@@ -196,34 +195,5 @@ export function Knowledge({ world, state, onSelect }: Pick<Props, "world" | "sta
         </>
       )}
     </div>
-  );
-}
-
-export function Events({ world, state, onSelect }: Pick<Props, "world" | "state" | "onSelect">) {
-  if (!state.eventLog.length) return <p className="muted">Nothing has happened yet. Events come every few weeks.</p>;
-  return (
-    <ul className="event-log">
-      {[...state.eventLog].reverse().map((e, i) => {
-        const d = describeEvent(world, e);
-        const active = state.events.some((a) => a.day === e.day && a.kind === e.kind);
-        return (
-          <li key={i}>
-            <span className="muted small">
-              Day {e.day}
-              {active ? " · now" : ""}
-            </span>
-            <br />
-            {e.zone >= 0 ? (
-              <button className="link" onClick={() => onSelect(e.zone)}>
-                {d.title}
-              </button>
-            ) : (
-              <b>{d.title}</b>
-            )}
-            <div className="muted small">{d.detail}</div>
-          </li>
-        );
-      })}
-    </ul>
   );
 }

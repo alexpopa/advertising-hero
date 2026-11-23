@@ -46,7 +46,6 @@ export interface CategoriesData {
   products: Record<string, ProductData>;
   /** Map layer groups. */
   layers?: { group: string; labels: string[] }[];
-  events?: Record<string, string[]>;
 }
 
 export type Difficulty = "easy" | "normal" | "hard";
@@ -154,8 +153,6 @@ export interface World {
   moneyScale: number;
   zones: ZoneModel[];
   byId: Map<string, ZoneModel>;
-  /** Weights for choosing event zones. */
-  eventWeights: { streetFair: number[]; competitor: number[]; busyness: number[] };
 }
 
 /** Something the player learned by running ads. */
@@ -163,17 +160,6 @@ export interface Insight {
   day: number;
   zone: number;
   label: string;
-}
-
-export type EventKind = "streetFair" | "rain" | "competitor" | "viral" | "priceUp";
-
-export interface ActiveEvent {
-  kind: EventKind;
-  /** Zone index, or -1 for citywide. */
-  zone: number;
-  daysLeft: number;
-  /** Day the event started. */
-  day: number;
 }
 
 export interface DayResult {
@@ -217,10 +203,6 @@ export interface GameState {
   pressureDigital: number[];
   daysBelowZero: number;
   status: "playing" | "finished" | "bankrupt";
-  events: ActiveEvent[];
-  nextEventDay: number;
-  /** Every event that has happened, for the log. */
-  eventLog: ActiveEvent[];
   history: DayResult[];
   /** The most recent day, per zone (for the campaigns tab). */
   lastDay: ZoneLedger;
