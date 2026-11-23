@@ -53,27 +53,30 @@ export type Difficulty = "easy" | "normal" | "hard";
 /**
  * Ad channels, named as the industry does. Out-of-home (OOH: billboards, bus shelters,
  * posters, displays in shops and venues) is strongest where many people pass and near stores
- * that sell you. Digital (targeted online ads) follows where your buyers are. A campaign runs
- * one or both: each channel costs its own money and adds its own awareness.
+ * that sell you. Digital (targeted online ads) follows where your buyers are. Each zone runs
+ * each channel at its own level: each costs its own money and adds its own awareness.
  */
 export type Channel = "ooh" | "digital";
 export const CHANNELS: Channel[] = ["ooh", "digital"];
 export const CHANNEL_NAMES: Record<Channel, string> = { ooh: "Out-of-home", digital: "Digital" };
-/** Which channels a campaign runs. */
-export type Format = Channel | "both";
-export const FORMATS: Format[] = ["ooh", "digital", "both"];
-export const FORMAT_NAMES: Record<Format, string> = { ooh: "Out-of-home", digital: "Digital", both: "Out-of-home + digital" };
-export const channelsOf = (f: Format): Channel[] => (f === "both" ? ["ooh", "digital"] : [f]);
-/** The format for a set of ticked channels, or null for none. */
-export function formatOf(ooh: boolean, digital: boolean): Format | null {
-  return ooh && digital ? "both" : ooh ? "ooh" : digital ? "digital" : null;
-}
+export const CHANNEL_ICONS: Record<Channel, string> = { ooh: "🪧", digital: "📱" };
 
-/** A campaign setting for one zone. */
-export interface Plan {
-  level: Level;
-  format: Format;
+/** A zone's ads: a level per channel (0 = off). */
+export type Plan = Record<Channel, Level>;
+export const OFF: Plan = { ooh: 0, digital: 0 };
+/** Does this plan run any ads? */
+export const isOn = (p: Plan) => p.ooh > 0 || p.digital > 0;
+/** The higher of the two levels (for the map badge). */
+export const topLevel = (p: Plan) => Math.max(p.ooh, p.digital) as Level;
+/** "Medium out-of-home + Low digital", "Low digital", "no ads" */
+export function planName(p: Plan): string {
+  const parts = CHANNELS.filter((ch) => p[ch] > 0).map((ch) => `${LEVEL_NAMES[p[ch]]} ${CHANNEL_NAMES[ch].toLowerCase()}`);
+  return parts.length ? parts.join(" + ") : "no ads";
 }
+/** Every plan: 4 out-of-home levels x 4 digital levels, Off first. */
+export const ALL_PLANS: Plan[] = ([0, 1, 2, 3] as Level[]).flatMap((ooh) =>
+  ([0, 1, 2, 3] as Level[]).map((digital) => ({ ooh, digital })),
+);
 
 /** Steady-state estimate for one plan in one zone. */
 export interface Estimate {
@@ -136,9 +139,9 @@ export interface ZoneModel {
   pricePct: number;
   /** 0..100, steady-state return per ad dollar at Medium, as a percentile. */
   score: number;
-  /** Steady-state estimates per format and level (0..3), ignoring brand, spillover and noise. */
-  est: Record<Format, Estimate[]>;
-  /** The most profitable plan here (level 0 if nothing pays). */
+  /** Steady-state estimates per plan, as est[ooh level][digital level], ignoring brand, spillover and noise. */
+  est: Estimate[][];
+  /** The most profitable plan here (OFF if nothing pays). */
   best: Plan;
   bestProfit: number;
   neighbors: number[];
@@ -162,10 +165,27 @@ export interface Insight {
   label: string;
 }
 
+/** The highest ad level your team can buy in each channel (0: nobody can buy it yet). */
+export type Staff = Record<Channel, Level>;
+
+/** Something bought with cash that lasts the whole run: a hire or a shop. */
+export interface Purchase {
+  day: number;
+  kind: "hire" | "shop";
+  /** The hire's channel. */
+  channel?: Channel;
+  /** The level the hire unlocked. */
+  level?: Level;
+  /** The shop's zone. */
+  zone?: number;
+  cost: number;
+}
+
 export interface DayResult {
   day: number;
   revenue: number;
   adSpend: number;
+  /** Everything else: base running cost, salaries, shop rent, and the share of sales. */
   overhead: number;
   profit: number;
   cash: number;
@@ -180,7 +200,7 @@ export interface ZoneLedger {
 }
 
 export interface GameState {
-  version: 4;
+  version: 5;
   seed: number;
   rng: number;
   productKey: string;
@@ -188,10 +208,8 @@ export interface GameState {
   /** Days completed so far (0 before the first step). */
   day: number;
   cash: number;
-  /** Ad level per zone index. */
-  levels: Level[];
-  /** Ad format per zone index (kept when ads are off, so fading ads keep theirs). */
-  formats: Format[];
+  /** Ad levels per zone index, one per channel. */
+  plans: Plan[];
   /** Days each zone has had ads running, for insights. */
   adDays: number[];
   /** Labels the player knows the role of. */
@@ -201,6 +219,14 @@ export interface GameState {
   pressure: number[];
   /** Digital ad pressure per zone index. */
   pressureDigital: number[];
+  /** Which ad levels your team can buy. */
+  staff: Staff;
+  /** Zones with your own shop, in the order opened. */
+  shops: number[];
+  /** Hires and shops, in order. */
+  purchases: Purchase[];
+  /** One entry per finished month: was its goal met? */
+  goalsMet: boolean[];
   daysBelowZero: number;
   status: "playing" | "finished" | "bankrupt";
   history: DayResult[];
@@ -211,5 +237,6 @@ export interface GameState {
 }
 
 export type Action =
-  | { type: "setLevel"; zone: number; level: Level }
-  | { type: "setFormat"; zone: number; format: Format };
+  | { type: "setPlan"; zone: number; plan: Partial<Plan> }
+  | { type: "hire"; channel: Channel }
+  | { type: "openShop"; zone: number };

@@ -1,6 +1,6 @@
 /** The results card shown over the map when a run ends. */
 import { CashChart } from "./CashChart";
-import { C, zoneTotalProfit, type GameState, type World } from "./sim";
+import { C, hiredOf, zoneTotalProfit, type GameState, type World } from "./sim";
 import { usd } from "./scale";
 import { DIFFICULTIES } from "./Menu";
 
@@ -21,6 +21,10 @@ export function EndScreen({ world, brand, state, onPlayAgain, onViewMap }: Props
     .map((z) => ({ z, profit: zoneTotalProfit(state, z.index) }))
     .sort((a, b) => b.profit - a.profit);
   const best = used.slice(0, 3);
+  const stars = state.goalsMet.filter(Boolean).length;
+  const team = hiredOf(state.staff);
+  const invested = state.purchases.reduce((a, p) => a + p.cost, 0);
+  const earlyBuys = state.purchases.filter((p) => p.day <= 10).length;
   const worst = used.length > 3 ? used.slice(-3).reverse().filter((r) => r.profit < 0) : [];
 
   return (
@@ -30,6 +34,19 @@ export function EndScreen({ world, brand, state, onPlayAgain, onViewMap }: Props
           {world.product.name} · {DIFFICULTIES.find((d) => d.key === state.difficulty)?.name}
         </p>
         <h1>{bankrupt ? `${brand} went bankrupt on day ${state.day}` : `${brand} after ${C.days} days`}</h1>
+        <p className="end-stars" aria-label={`${stars} of ${C.goals.length} monthly goals met`}>
+          {C.goals.map((_, m) => (state.goalsMet[m] ? "★" : "☆")).join("")}
+          <span className="small muted">
+            {" "}
+            {stars} of {C.goals.length} monthly goals
+          </span>
+        </p>
+        <p className="small">
+          {team.length ? `Team: you + ${team.length} hire${team.length === 1 ? "" : "s"}` : "Team: just you"}
+          {state.shops.length > 0 &&
+            ` · ${state.shops.length} shop${state.shops.length === 1 ? "" : "s"} (${state.shops.map((z) => world.zones[z].name).join(", ")})`}
+          {invested > 0 && ` · ${usd(invested)} invested`}
+        </p>
         <div className="stats">
           <div>
             <span className="muted small">Final cash</span>
@@ -77,9 +94,11 @@ export function EndScreen({ world, brand, state, onPlayAgain, onViewMap }: Props
         )}
         {bankrupt && (
           <p className="muted">
-            {used.length < 4
-              ? `Tip: running the business costs ${usd(C.fixedOverhead)}/day even with no ads, so one or two campaigns can't cover it. Aim for five or six strong neighborhoods, added a few at a time as cash allows.`
-              : `Tip: every campaign costs a ${usd(C.formats.ooh.fee)}/day fee (${usd(C.formats.digital.fee)} digital) on top of the ads, so weak neighborhoods lose money. Check the campaigns list and cut anything that's still red after a month.`}
+            {earlyBuys > 0
+              ? "Tip: hires and shops are paid for up front, and new ads lose money for weeks while they build up. Keep some cash spare, and hire once your profit per day can carry the salary."
+              : used.length < 4
+                ? `Tip: running the business costs ${usd(C.fixedOverhead)}/day plus salaries and rent, even with no ads. Aim for several strong neighborhoods, added a few at a time as cash allows.`
+                : `Tip: every campaign costs a ${usd(C.formats.ooh.fee)}/day fee (${usd(C.formats.digital.fee)} digital) on top of the ads, so weak neighborhoods lose money. Check the campaigns list and cut anything that's still red after a month.`}
           </p>
         )}
         <div className="row">

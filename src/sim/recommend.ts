@@ -1,22 +1,25 @@
 /**
  * Easy-mode suggestions (DESIGN.md 6.7): the best one-step campaign changes by estimated
- * steady-state profit. A step is one level up or down, or ticking or unticking
- * out-of-home or digital ads. The UI only shows these on Easy; the economy is the same on every difficulty.
+ * steady-state profit. A step moves one channel (out-of-home or digital) in one zone one
+ * level up or down, among what your team can buy. The UI only shows these on Easy; the
+ * economy is the same on every difficulty.
  */
 import { explain } from "./explain";
-import { estimate } from "./world";
-import { FORMATS, FORMAT_NAMES, LEVEL_NAMES, type GameState, type Level, type Plan, type World } from "./types";
+import { allowed, estimateFor } from "./team";
+import { CHANNELS, CHANNEL_NAMES, LEVEL_NAMES, type Channel, type GameState, type Level, type Plan, type World } from "./types";
 
 export interface Recommendation {
   zone: number;
   zoneName: string;
+  /** The channel that changes. */
+  channel: Channel;
   from: Plan;
   to: Plan;
   /** Estimated change in profit per day once the change has fully taken effect. */
   deltaProfit: number;
   /** Ad cost per day with the new plan. */
   costPerDay: number;
-  /** "Medium digital ads in Mission" / "Cut Marina from High to Medium" / "Switch Mission to out-of-home ads" */
+  /** "Medium digital ads in Mission" / "Cut out-of-home in Marina from High to Medium" / "Stop digital in Mission" */
   title: string;
   reason: string;
   /** True when the change lowers spend or stops ads. */
@@ -26,37 +29,39 @@ export interface Recommendation {
 export function recommend(world: World, state: GameState, count = 5): Recommendation[] {
   const out: Recommendation[] = [];
   for (const z of world.zones) {
-    const from: Plan = { level: state.levels[z.index], format: state.formats[z.index] };
-    const fromProfit = estimate(z, from).profit;
-    const candidates: Plan[] = [];
-    if (from.level === 0) for (const format of FORMATS) candidates.push({ level: 1, format });
-    else {
-      for (const level of [from.level - 1, from.level + 1] as Level[])
-        if (level >= 0 && level <= 3) candidates.push({ ...from, level });
-      for (const format of FORMATS) if (format !== from.format) candidates.push({ ...from, format });
-    }
-    let best: { to: Plan; delta: number } | null = null;
-    for (const to of candidates) {
-      const delta = estimate(z, to).profit - fromProfit;
-      if (delta > 0.5 && (!best || delta > best.delta)) best = { to, delta };
-    }
+    const from = state.plans[z.index];
+    const est = (p: Plan) => estimateFor(world, state, z.index, p);
+    const fromProfit = est(from).profit;
+    let best: { to: Plan; channel: Channel; delta: number } | null = null;
+    for (const channel of CHANNELS)
+      for (const step of [-1, 1]) {
+        const level = from[channel] + step;
+        if (level < 0 || level > 3) continue;
+        const to = { ...from, [channel]: level as Level };
+        if (!allowed(state.staff, to)) continue;
+        const delta = est(to).profit - fromProfit;
+        if (delta > 0.5 && (!best || delta > best.delta)) best = { to, channel, delta };
+      }
     if (!best) continue;
-    const { to } = best;
-    const cut = to.level < from.level;
-    const fmt = FORMAT_NAMES[to.format].toLowerCase();
-    let title: string;
-    if (from.level === 0) title = `${LEVEL_NAMES[to.level]} ${fmt} ads in ${z.name}`;
-    else if (to.level === 0) title = `Stop ads in ${z.name}`;
-    else if (to.level !== from.level)
-      title = `${cut ? "Cut" : "Raise"} ${z.name} from ${LEVEL_NAMES[from.level]} to ${LEVEL_NAMES[to.level]}`;
-    else title = `Switch ${z.name} to ${fmt} ads`;
+    const { to, channel } = best;
+    const a = from[channel];
+    const b = to[channel];
+    const cut = b < a;
+    const ch = CHANNEL_NAMES[channel].toLowerCase();
+    const title =
+      a === 0
+        ? `${LEVEL_NAMES[b]} ${ch} ads in ${z.name}`
+        : b === 0
+          ? `Stop ${ch} in ${z.name}`
+          : `${cut ? "Cut" : "Raise"} ${ch} in ${z.name} from ${LEVEL_NAMES[a]} to ${LEVEL_NAMES[b]}`;
     out.push({
       zone: z.index,
       zoneName: z.name,
+      channel,
       from,
       to,
       deltaProfit: best.delta,
-      costPerDay: estimate(z, to).cost,
+      costPerDay: est(to).cost,
       title,
       reason: cut ? "Costs more than it brings in" : explain(world, z.index).summary,
       cut,

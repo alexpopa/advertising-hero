@@ -115,6 +115,8 @@ interface Props {
   zoneCardOpen?: boolean;
   /** Bubbles to show over zones (leads, orders...). New ids are shown once each. */
   pops?: Pop[];
+  /** Zones with your own shop: a storefront pin above the zone's center. */
+  shops?: number[];
 }
 
 interface Hover {
@@ -123,7 +125,7 @@ interface Hover {
   zone: number;
 }
 
-export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOpen, paint, describe, pops }: Props) {
+export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOpen, paint, describe, pops, shops }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [ready, setReady] = useState(false);
@@ -310,6 +312,24 @@ export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOp
     };
     (map.current!.getSource("badges") as GeoJSONSource).setData(badges);
   }, [ready, geojson, world, levels, paint]);
+
+  // A storefront pin for each of your shops, just above the zone's ad badge.
+  const shopKey = (shops ?? []).join(",");
+  useEffect(() => {
+    if (!ready || !shops?.length) return;
+    const markers = shops.map((zone) => {
+      const el = document.createElement("div");
+      el.className = "shop-pin";
+      el.textContent = "🏪";
+      el.title = `Your shop in ${world.zones[zone].name}`;
+      el.setAttribute("aria-label", el.title);
+      return new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -12] })
+        .setLngLat(world.zones[zone].data.center)
+        .addTo(map.current!);
+    });
+    return () => markers.forEach((mk) => mk.remove());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, world, shopKey]);
 
   // Outline the selected zone. On phones the panel covers the lower part of the screen,
   // so move the map to keep the selected zone in view above it.

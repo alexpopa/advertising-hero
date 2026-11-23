@@ -4,18 +4,10 @@
  */
 import { C } from "./constants";
 import { Rng } from "./rng";
-import { adCostPerDay, channelMix, reach, runs, type Prices } from "./world";
+import { adCostPerDay, channelMix, reach, type Prices } from "./world";
 import { initialKnown, nextInsight } from "./insights";
-import type {
-  Action,
-  Difficulty,
-  Format,
-  GameState,
-  Insight,
-  Level,
-  World,
-  ZoneLedger,
-} from "./types";
+import { START_STAFF, clampPlan, fixedCosts, goalBonus, hire, monthGoal, openShop } from "./team";
+import { OFF, isOn, type Action, type Difficulty, type GameState, type Insight, type Plan, type World, type ZoneLedger } from "./types";
 
 const emptyLedger = (n: number): ZoneLedger => ({
   customers: new Array(n).fill(0),
@@ -27,20 +19,23 @@ export function initGame(world: World, seed: number, difficulty: Difficulty = "h
   const n = world.zones.length;
   const rng = new Rng(seed);
   return {
-    version: 4,
+    version: 5,
     seed,
     rng: rng.state,
     productKey: world.productKey,
     difficulty,
     day: 0,
     cash: C.startCash,
-    levels: new Array(n).fill(0),
-    formats: new Array(n).fill("ooh"),
+    plans: new Array(n).fill(OFF),
     adDays: new Array(n).fill(0),
     known: initialKnown(world.product, difficulty),
     insights: [],
     pressure: new Array(n).fill(0),
     pressureDigital: new Array(n).fill(0),
+    staff: { ...START_STAFF },
+    shops: [],
+    purchases: [],
+    goalsMet: [],
     daysBelowZero: 0,
     status: "playing",
     history: [],
@@ -59,30 +54,25 @@ export function awareness(state: Pick<GameState, "pressure" | "pressureDigital">
   return 1 - (1 - reach(state.pressure[zone])) * (1 - reach(state.pressureDigital?.[zone] ?? 0));
 }
 
-/**
- * Ad cost per day for a zone at a level, with its format (or the one given), including the
- * campaign fee.
- */
-export function adCost(
-  world: World,
-  state: Pick<GameState, "formats">,
-  zone: number,
-  level: Level,
-  format: Format = state.formats?.[zone] ?? "ooh",
-): number {
-  return adCostPerDay(pricesOf(world, zone), { level, format });
+/** Ad cost per day for a plan in a zone, campaign fees included. */
+export function adCost(world: World, zone: number, plan: Plan): number {
+  return adCostPerDay(pricesOf(world, zone), plan);
 }
 
 /** Apply the player's actions, then simulate one day. */
 export function step(world: World, state: GameState, actions: Action[] = []): GameState {
   if (state.status !== "playing") return state;
   const n = world.zones.length;
-  const levels = [...state.levels];
-  const formats = [...state.formats];
+  // Hires and shops are paid for before the day starts.
   for (const a of actions) {
-    if (a.type === "setLevel") levels[a.zone] = a.level;
-    else if (a.type === "setFormat") formats[a.zone] = a.format;
+    if (a.type === "hire") state = hire(state, a.channel);
+    else if (a.type === "openShop") state = openShop(state, a.zone);
   }
+  const plans = [...state.plans];
+  for (const a of actions) if (a.type === "setPlan") plans[a.zone] = { ...plans[a.zone], ...a.plan };
+  // Nobody on the team can buy above what they've unlocked.
+  for (let i = 0; i < n; i++) plans[i] = clampPlan(state.staff, plans[i]);
+  const shop = world.zones.map((_, i) => state.shops.includes(i));
 
   const rng = new Rng(state.rng);
   const day = state.day + 1;
@@ -91,9 +81,9 @@ export function step(world: World, state: GameState, actions: Action[] = []): Ga
   // spill over a little into neighbors (people cross the street); digital ads are targeted and don't.
   // Pressure is in "intensity" units (Low = 1/day), so spillover from an expensive zone
   // doesn't swamp a cheap neighbor.
-  const plans = levels.map((level, i) => ({ level, format: formats[i] }));
-  const oohIn = plans.map((p) => (runs(p, "ooh") ? C.levelMult[p.level] : 0));
-  const digitalIn = plans.map((p) => (runs(p, "digital") ? C.levelMult[p.level] : 0));
+  // Your shop's storefront works like a Low out-of-home ad that never stops.
+  const oohIn = plans.map((p, i) => C.levelMult[p.ooh] + (shop[i] ? C.shop.pressure : 0));
+  const digitalIn = plans.map((p) => C.levelMult[p.digital]);
   const pressure = world.zones.map((z, i) => {
     let spill = 0;
     for (const nb of z.neighbors) spill += oohIn[nb];
@@ -118,7 +108,7 @@ export function step(world: World, state: GameState, actions: Action[] = []): Ga
     let cust = 0;
     if (aware[i] > 1e-4) {
       const noise = Math.min(C.noiseMax, Math.max(C.noiseMin, 1 + C.noiseSd * rng.normal()));
-      cust = z.pmax * channelMix(z.formatEff, reachOoh[i], reachDigital[i]) * brand * noise;
+      cust = z.pmax * (shop[i] ? 1 + C.shop.boost : 1) * channelMix(z.formatEff, reachOoh[i], reachDigital[i]) * brand * noise;
     }
     lastDay.customers[i] = cust;
     lastDay.revenue[i] = cust * unitMargin;
@@ -127,9 +117,20 @@ export function step(world: World, state: GameState, actions: Action[] = []): Ga
     adSpend += spend;
     customers += cust;
   }
-  const overhead = C.fixedOverhead + C.variableOverhead * revenue;
+  const overhead = fixedCosts(world, state) + C.variableOverhead * revenue;
   const profit = revenue - adSpend - overhead;
-  const cash = state.cash + profit;
+  let cash = state.cash + profit;
+
+  // End of a month: did the average profit per day reach the goal? A star and a bonus if so.
+  let goalsMet = state.goalsMet;
+  if (day % C.monthDays === 0 && goalsMet.length < C.goals.length) {
+    const month = goalsMet.length;
+    const recent = [...state.history.slice(-(C.monthDays - 1)), { profit }];
+    const avg = recent.reduce((a, h) => a + h.profit, 0) / C.monthDays;
+    const met = avg >= monthGoal(month);
+    if (met) cash += goalBonus(month);
+    goalsMet = [...goalsMet, met];
+  }
   const daysBelowZero = cash < 0 ? state.daysBelowZero + 1 : 0;
   const status =
     daysBelowZero >= C.bankruptDays ? "bankrupt"
@@ -137,7 +138,7 @@ export function step(world: World, state: GameState, actions: Action[] = []): Ga
     : "playing";
 
   // Insights: two weeks of ads in a neighborhood teaches one thing about the product.
-  const adDays = state.adDays.map((d, i) => (levels[i] > 0 ? d + 1 : d));
+  const adDays = state.adDays.map((d, i) => (isOn(plans[i]) || shop[i] ? d + 1 : d));
   let known = state.known;
   let insights = state.insights;
   for (let i = 0; i < n; i++) {
@@ -159,13 +160,13 @@ export function step(world: World, state: GameState, actions: Action[] = []): Ga
     rng: rng.state,
     day,
     cash,
-    levels,
-    formats,
+    plans,
     adDays,
     known,
     insights,
     pressure,
     pressureDigital,
+    goalsMet,
     daysBelowZero,
     status,
     history: [...state.history, { day, revenue, adSpend, overhead, profit, cash, customers }],

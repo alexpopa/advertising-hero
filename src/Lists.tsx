@@ -1,8 +1,20 @@
-/** The lists in the in-game dropdown: suggestions (Easy), campaigns, and what you know. */
+/** The lists in the in-game dropdown: suggestions (Easy), campaigns, your team, and what you know. */
 import { useState } from "react";
 import {
   C,
-  FORMAT_NAMES,
+  CHANNELS,
+  CHANNEL_ICONS,
+  CHANNEL_NAMES,
+  fixedCosts,
+  goalBonus,
+  hireGain,
+  isOn,
+  monthProgress,
+  salaries,
+  shopCost,
+  shopRent,
+  totalRent,
+  type Channel,
   LEVEL_NAMES,
   ROLE_TITLES,
   labelName,
@@ -34,7 +46,7 @@ export function Suggestions({ world, state, onSelect, onSetPlan }: Props) {
   return (
     <ol className="recs">
       {recs.map((r) => (
-        <li key={`${r.zone}-${r.to.level}-${r.to.format}`}>
+        <li key={`${r.zone}-${r.channel}-${r.to[r.channel]}`}>
           <button className="link" onClick={() => onSelect(r.zone)}>
             {r.title}
           </button>
@@ -42,7 +54,7 @@ export function Suggestions({ world, state, onSelect, onSetPlan }: Props) {
           <div className="rec-foot">
             <span className="pos small">+{usd(r.deltaProfit)}/day once built up</span>
             <button className="btn btn-small" disabled={state.status !== "playing"} onClick={() => onSetPlan(r.zone, r.to)}>
-              {r.cut ? "Cut" : r.from.level === 0 ? "Buy" : "Change"} · {r.to.level === 0 ? "$0" : usd(r.costPerDay)}/day
+              {r.cut ? "Cut" : r.from[r.channel] === 0 ? "Buy" : "Change"} · {usd(r.costPerDay)}/day
             </button>
           </div>
         </li>
@@ -55,10 +67,10 @@ export function Campaigns({ world, state, onSelect, onSetPlan }: Props) {
   const [sort, setSort] = useState<SortKey>("profit");
   // Include zones whose ads have stopped but are still fading out and bringing customers.
   const rows = world.zones
-    .filter((z) => state.levels[z.index] > 0 || state.lastDay.customers[z.index] > 0.05)
+    .filter((z) => isOn(state.plans[z.index]) || state.lastDay.customers[z.index] > 0.05)
     .map((z) => ({
       z,
-      level: state.levels[z.index],
+      plan: state.plans[z.index],
       cost: state.lastDay.adSpend[z.index],
       customers: state.lastDay.customers[z.index],
       profit: zoneDayProfit(state, z.index),
@@ -87,7 +99,8 @@ export function Campaigns({ world, state, onSelect, onSetPlan }: Props) {
         <thead>
           <tr>
             <th scope="col">Neighborhood</th>
-            <th scope="col">Level</th>
+            <th scope="col" title="Out-of-home">{CHANNEL_ICONS.ooh}</th>
+            <th scope="col" title="Digital">{CHANNEL_ICONS.digital}</th>
             <th scope="col">Cust.</th>
             <th scope="col">Profit</th>
           </tr>
@@ -99,24 +112,26 @@ export function Campaigns({ world, state, onSelect, onSetPlan }: Props) {
                 <button className="link" onClick={() => onSelect(r.z.index)}>
                   {r.z.name}
                 </button>
-                <div className="muted small">
-                  {FORMAT_NAMES[state.formats[r.z.index]]} ads
-                </div>
               </th>
-              <td>
-                <select
-                  aria-label={`Ad level in ${r.z.name}`}
-                  value={r.level}
-                  disabled={state.status !== "playing"}
-                  onChange={(e) => onSetPlan(r.z.index, { level: Number(e.target.value) as Level })}
-                >
-                  {LEVEL_NAMES.map((n, l) => (
-                    <option key={n} value={l}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </td>
+              {CHANNELS.map((ch) => (
+                <td key={ch}>
+                  <select
+                    aria-label={`${CHANNEL_NAMES[ch]} level in ${r.z.name}`}
+                    value={r.plan[ch]}
+                    disabled={state.status !== "playing"}
+                    onChange={(e) => onSetPlan(r.z.index, { [ch]: Number(e.target.value) as Level })}
+                  >
+                    {LEVEL_NAMES.map((n, l) => {
+                      const locked = l > state.staff[ch];
+                      return (
+                        <option key={n} value={l} disabled={locked}>
+                          {locked ? `${n} 🔒` : n}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </td>
+              ))}
               <td>{r.customers.toFixed(1)}</td>
               <td className={r.profit >= 0 ? "pos" : "neg"}>
                 {r.profit >= 0 ? "+" : ""}
@@ -127,7 +142,7 @@ export function Campaigns({ world, state, onSelect, onSetPlan }: Props) {
         </tbody>
         <tfoot>
           <tr>
-            <th scope="row" colSpan={3}>
+            <th scope="row" colSpan={4}>
               Campaigns yesterday
             </th>
             <td className={total >= 0 ? "pos" : "neg"}>
@@ -142,6 +157,125 @@ export function Campaigns({ world, state, onSelect, onSetPlan }: Props) {
         week while awareness builds.
       </p>
     </>
+  );
+}
+
+/** Ladder order in the Team tab: digital first, since that's where you start. */
+const LADDER: Channel[] = ["digital", "ooh"];
+
+/** Monthly goals, your team (hire the next person per channel), shops and running costs. */
+export function Team({
+  world,
+  state,
+  onHire,
+}: Pick<Props, "world" | "state"> & { onHire: (channel: Channel) => void }) {
+  const easy = state.difficulty === "easy";
+  const playing = state.status === "playing";
+  const prog = monthProgress(state);
+  const current = playing ? state.goalsMet.length : -1;
+  return (
+    <div className="team">
+      <section>
+        <h4>Monthly goals · profit per day</h4>
+        <ol className="goals">
+          {C.goals.map((g, m) => {
+            const met = state.goalsMet[m];
+            const cls = met === true ? "met" : met === false ? "missed" : m === current ? "now" : "";
+            return (
+              <li
+                key={m}
+                className={cls}
+                title={`Month ${m + 1}: average ${usd(g)}/day${met === undefined ? ` (bonus ${usd(goalBonus(m))})` : met ? ", met" : ", missed"}`}
+              >
+                <span className="goal-star" aria-hidden>
+                  {met ? "★" : "☆"}
+                </span>
+                <span className="small">{usd(g)}</span>
+              </li>
+            );
+          })}
+        </ol>
+        {playing && (
+          <p className="small">
+            Month {prog.month + 1}:{" "}
+            <b className={prog.avg >= prog.goal ? "pos" : prog.daysIn ? "neg" : ""}>{usd(prog.avg)}</b>/day so far of{" "}
+            {usd(prog.goal)} · {prog.daysLeft} days left · ★ pays {usd(goalBonus(prog.month))}
+          </p>
+        )}
+      </section>
+
+      <section>
+        <h4>Your team</h4>
+        {LADDER.map((ch) => (
+          <div key={ch} className="ladder">
+            <b className="small">{CHANNEL_NAMES[ch]}</b>
+            <ul>
+              {([1, 2, 3] as Level[]).map((l) => {
+                const h = C.hires[ch][l];
+                if (!h) return (
+                  <li key={l} className="hired small">
+                    ✓ You · {LEVEL_NAMES[l]}
+                  </li>
+                );
+                const hired = state.staff[ch] >= l;
+                const next = state.staff[ch] + 1 === l;
+                if (hired)
+                  return (
+                    <li key={l} className="hired small">
+                      ✓ {h.title} · {LEVEL_NAMES[l]} · {usd(h.salary)}/day
+                    </li>
+                  );
+                if (!next)
+                  return (
+                    <li key={l} className="later small muted">
+                      🔒 {h.title} · {LEVEL_NAMES[l]}
+                    </li>
+                  );
+                const gain = easy ? hireGain(world, state, ch) : null;
+                return (
+                  <li key={l} className="next">
+                    <button className="btn btn-small" disabled={!playing || state.cash < h.signing} onClick={() => onHire(ch)}>
+                      Hire · {usd(h.signing)}
+                    </button>
+                    <span className="small">
+                      <b>{h.title}</b> · unlocks {LEVEL_NAMES[l]} · {usd(h.salary)}/day
+                      {gain !== null && (
+                        <span className={gain >= 0 ? "pos" : "neg"}>
+                          {" "}
+                          · {gain >= 0 ? "+" : ""}
+                          {usd(gain)}/day at best
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </section>
+
+      <section>
+        <h4>Shops</h4>
+        {state.shops.length > 0 && (
+          <ul className="small">
+            {state.shops.map((z) => (
+              <li key={z}>
+                🏪 {world.zones[z].name} · rent {usd(shopRent(world, z))}/day
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="small muted">
+          {state.shops.length ? "Next shop" : "Your first shop"}: {usd(shopCost(state))}. Open one from a neighborhood's card.
+        </p>
+      </section>
+
+      <p className="small costs">
+        Running costs {usd(fixedCosts(world, state))}/day: base {usd(C.fixedOverhead)} + salaries {usd(salaries(state.staff))}
+        {state.shops.length > 0 && <> + rent {usd(totalRent(world, state))}</>}
+      </p>
+    </div>
   );
 }
 

@@ -6,17 +6,25 @@
  * first-run hints come and go on their own.
  */
 import { useEffect, useRef, useState } from "react";
-import { Campaigns, Knowledge, Suggestions } from "./Lists";
+import { Campaigns, Knowledge, Suggestions, Team } from "./Lists";
 import {
   C,
+  CHANNELS,
+  CHANNEL_ICONS,
   CHANNEL_NAMES,
   LEVEL_NAMES,
+  OFF,
   adCost,
-  channelsOf,
-  estimate,
+  estimateFor,
+  isOn,
+  goalBonus,
   labelName,
+  monthProgress,
+  nextHire,
+  shopCost,
   roleSentence,
   step,
+  type Channel,
   type GameState,
   type Plan,
   type World,
@@ -42,6 +50,7 @@ interface Toast {
   detail: string;
   zone: number;
   insight?: boolean;
+  goal?: boolean;
 }
 
 interface Props {
@@ -59,6 +68,7 @@ interface Props {
   onPops?: (pops: Pop[]) => void;
   /** Is the neighborhood card open? (On phones it covers the plan tray.) */
   zoneOpen?: boolean;
+  onHire: (channel: Channel) => void;
 }
 
 export function GameHud({
@@ -73,6 +83,7 @@ export function GameHud({
   onResults,
   onPops,
   zoneOpen,
+  onHire,
 }: Props) {
   const [running, setRunning] = useState(false);
   const [speedIx, setSpeedIx] = useState(0);
@@ -84,6 +95,7 @@ export function GameHud({
   const speed = SPEEDS[speedIx];
   const ticking = running && playing && !paused;
   const tabs: Tab[] = easy ? ["suggestions", "campaigns", "know"] : ["campaigns", "know"];
+  const [teamOpen, setTeamOpen] = useState(false);
   const hud = useRef<HTMLDivElement>(null);
 
   // The clock.
@@ -101,7 +113,10 @@ export function GameHud({
         e.preventDefault();
         setRunning((r) => !r);
       }
-      if (e.key === "Escape") setTab(null);
+      if (e.key === "Escape") {
+        setTab(null);
+        setTeamOpen(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -135,6 +150,31 @@ export function GameHud({
     setTimeout(() => setToasts((t) => t.filter((x) => !ids.includes(x.id))), 12000);
   }, [state.insights, world]);
 
+  // A toast at the end of each month: goal met (★ and bonus) or missed.
+  const seenGoals = useRef(state.goalsMet.length);
+  useEffect(() => {
+    const n = state.goalsMet.length;
+    if (n <= seenGoals.current) {
+      seenGoals.current = n;
+      return;
+    }
+    seenGoals.current = n;
+    const m = n - 1;
+    const met = state.goalsMet[m];
+    const start = m * C.monthDays;
+    const days = state.history.filter((h) => h.day > start && h.day <= start + C.monthDays);
+    const avg = days.reduce((a, h) => a + h.profit, 0) / Math.max(1, days.length);
+    const t: Toast = {
+      id: Math.random(),
+      zone: -1,
+      title: met ? `★ Month ${m + 1} goal met! +${usd(goalBonus(m))} bonus` : `Month ${m + 1} goal missed`,
+      detail: `Average ${usd(avg)}/day against ${usd(C.goals[m])}.`,
+      goal: true,
+    };
+    setToasts((all) => [...all, t].slice(-3));
+    setTimeout(() => setToasts((all) => all.filter((x) => x.id !== t.id)), 9000);
+  }, [state.goalsMet, state.history]);
+
   // Leads and orders pop up over the map each day. Only for a day that just passed, not on
   // load or after a reset, so reopening a saved game doesn't replay old sales.
   const prevState = useRef(state);
@@ -164,7 +204,7 @@ export function GameHud({
   };
 
   const yesterday = state.history[state.history.length - 1];
-  const campaignCount = state.levels.filter((l) => l > 0).length;
+  const campaignCount = state.plans.filter(isOn).length;
   const waitingToStart = playing && state.day === 0 && !running;
 
   return (
@@ -261,6 +301,17 @@ export function GameHud({
         )}
       </div>
 
+      <TeamBubble
+        world={world}
+        state={state}
+        open={teamOpen}
+        onToggle={() => {
+          setTeamOpen((o) => !o);
+          setTab(null);
+        }}
+        onHire={onHire}
+      />
+
       {showHints && (
         <div className="float-card hints" role="dialog" aria-label="How to play">
           <h2>How to play</h2>
@@ -298,14 +349,18 @@ export function GameHud({
               )}
             </li>
             <li>
-              <b>Out-of-home, digital, or both.</b> Out-of-home ads (billboards, bus shelters, posters) work best in
-              busy areas and near the stores that sell you. Digital ads follow where your buyers are, with no downtown
-              premium. Tick both and each reaches its own people.
+              <b>Two channels, each with its own level.</b> Out-of-home ads (billboards, bus shelters, posters) work
+              best in busy areas and near the stores that sell you. Digital ads follow where your buyers are, with no
+              downtown premium. Run either or both; each reaches its own people.
             </li>
             <li>
-              <b>Press ▶ to start the clock</b>, then watch profit per day and cut what's red. Running the business costs{" "}
-              {usd(C.fixedOverhead)}/day, so you'll need several good neighborhoods. But every campaign has a{" "}
-              {usd(C.formats.ooh.fee)}/day fee and ads take about a month to reach full strength, so don't buy everywhere.
+              <b>You start alone, with digital ads at Low.</b> Hire buyers (👥 top left) to unlock out-of-home ads, and
+              Medium and High in each channel. Each hire costs a signing fee and a salary, for good. A shop is a
+              permanent bet on one neighborhood: walk-ins and more sales there, plus rent.
+            </li>
+            <li>
+              <b>Press ▶ to start the clock.</b> Ads take about a month to build up and every campaign has a daily fee, so
+              don't buy everywhere. Each month has a profit goal: hit it for a ★ and bonus cash.
             </li>
           </ol>
           <button
@@ -329,7 +384,7 @@ export function GameHud({
             onSelect(z);
             setTab(null);
           }}
-          onRemove={(z) => setPlan(z, { level: 0 })}
+          onRemove={(z) => setPlan(z, OFF)}
           onLaunch={() => {
             setRunning(true);
             onSelect(null);
@@ -341,9 +396,10 @@ export function GameHud({
         {toasts.map((t) => (
           <button
             key={t.id}
-            className={"toast" + (t.insight ? " insight" : "")}
+            className={"toast" + (t.insight ? " insight" : "") + (t.goal ? " goal" : "")}
             onClick={() => {
               if (t.zone >= 0) select(t.zone);
+              else if (t.goal) setTeamOpen(true);
               setToasts((all) => all.filter((x) => x.id !== t.id));
             }}
           >
@@ -376,13 +432,13 @@ function PlanTray({
   onRemove: (zone: number) => void;
   onLaunch: () => void;
 }) {
-  const planned = world.zones.filter((z) => state.levels[z.index] > 0);
+  const planned = world.zones.filter((z) => isOn(state.plans[z.index]));
   const fresh = state.day === 0;
-  const cost = planned.reduce((a, z) => a + adCost(world, state, z.index, state.levels[z.index]), 0);
+  const cost = planned.reduce((a, z) => a + adCost(world, z.index, state.plans[z.index]), 0);
   const est =
     state.difficulty === "easy"
       ? planned.reduce(
-          (a, z) => a + estimate(z, { level: state.levels[z.index], format: state.formats[z.index] }).profit,
+          (a, z) => a + estimateFor(world, state, z.index, state.plans[z.index]).profit,
           0,
         )
       : null;
@@ -397,16 +453,19 @@ function PlanTray({
       ) : (
         <ul className="plan-chips">
           {planned.map((z) => {
-            const chans = channelsOf(state.formats[z.index]);
+            const p = state.plans[z.index];
+            const chans = CHANNELS.filter((ch) => p[ch] > 0);
             return (
               <li key={z.index} className="plan-chip">
                 <button className="chip-main" onClick={() => onSelect(z.index)} title={`Edit ${z.name}`}>
-                  <span className="chip-level" aria-label={LEVEL_NAMES[state.levels[z.index]]}>
-                    {LEVEL_NAMES[state.levels[z.index]][0]}
-                  </span>
                   <span className="chip-name">{z.name}</span>
-                  <span className="chip-chans" aria-label={chans.map((c) => CHANNEL_NAMES[c]).join(" and ")}>
-                    {chans.map((c) => (c === "ooh" ? "🪧" : "📱")).join("")}
+                  <span className="chip-chans" aria-label={chans.map((ch) => `${CHANNEL_NAMES[ch]} ${LEVEL_NAMES[p[ch]]}`).join(", ")}>
+                    {chans.map((ch) => (
+                      <span key={ch} className="chip-chan">
+                        {CHANNEL_ICONS[ch]}
+                        {LEVEL_NAMES[p[ch]][0]}
+                      </span>
+                    ))}
                   </span>
                 </button>
                 <button className="chip-x" onClick={() => onRemove(z.index)} aria-label={`Remove ${z.name}`}>
@@ -433,5 +492,64 @@ function PlanTray({
         ▶ {fresh ? (n === 0 ? "Launch" : `Launch ${n}`) : "Resume"}
       </button>
     </section>
+  );
+}
+
+/**
+ * Top left: this month's goal and how it's going, and the stars so far. A green dot shows
+ * when you can afford a hire or a shop. Click to open your team, goals and shops.
+ */
+function TeamBubble({
+  world,
+  state,
+  open,
+  onToggle,
+  onHire,
+}: {
+  world: World;
+  state: GameState;
+  open: boolean;
+  onToggle: () => void;
+  onHire: (channel: Channel) => void;
+}) {
+  const p = monthProgress(state);
+  const playing = state.status === "playing";
+  const canBuy =
+    playing &&
+    ((["digital", "ooh"] as Channel[]).some((ch) => {
+      const h = nextHire(state.staff, ch);
+      return h && state.cash >= h.signing;
+    }) ||
+      state.cash >= shopCost(state));
+  const onTrack = p.daysIn > 0 && p.avg >= p.goal;
+  return (
+    <div className={"team-bubble" + (open ? " open" : "")}>
+      <button className="goal-chip" onClick={onToggle} aria-expanded={open} title="Team & goals">
+        <span aria-hidden>👥</span>
+        <span className="goal-stars" aria-label={`${state.goalsMet.filter(Boolean).length} stars`}>
+          {C.goals.map((_, m) => (state.goalsMet[m] ? "★" : "☆")).join("")}
+        </span>
+        {playing && (
+          <span className="small">
+            <b className={p.daysIn === 0 ? "" : onTrack ? "pos" : "neg"}>{usd(p.avg)}</b>
+            <span className="muted"> / {usd(p.goal)}</span>
+          </span>
+        )}
+        {canBuy && <span className="buy-dot" aria-label="You can afford a hire or a shop" />}
+      </button>
+      {open && (
+        <div className="float-card team-card">
+          <header className="team-head">
+            <b>Team &amp; goals</b>
+            <button className="icon-btn" onClick={onToggle} aria-label="Close">
+              ×
+            </button>
+          </header>
+          <div className="team-body">
+            <Team world={world} state={state} onHire={onHire} />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

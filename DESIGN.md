@@ -224,7 +224,7 @@ Result (median of 5 seeds; ranges across the 6 products):
 
 **Stockists.** `S` = weighted stockist count per 10,000 people. Potential gets `× (1 + 0.5 · S / (S + 3))`: up to +50%, half of that at 3 weighted stockists per 10k people.
 
-**Ad channels.** Each neighborhood has two checkboxes, Out-of-home and Digital, plus one level (Low / Medium / High) that applies to whichever are ticked. Neither ticked = no ads.
+**Ad channels.** Each neighborhood runs Out-of-home and Digital at separate levels: Off / Low / Medium / High each (since 2026-11-23, 6.15; before that, two checkboxes sharing one level). Both Off = no ads. How high each channel can go depends on who you've hired (6.15).
 
 | Channel | Low price per day | Fee/day | Effectiveness (multiplies customers) | Spillover |
 |---|---|---|---|---|
@@ -255,6 +255,45 @@ Playtest finding: with ad decay 0.9, a campaign on both channels at High reached
 - **Insights every 14 days of ads** per neighborhood (was 7), and Normal unlocks estimates at the same point. Events were briefly set to every 12–18 days, then removed (6.8).
 
 Balance (median of 5 seeds, all 20 products): perfect play $75k–91k; Easy's top suggestion daily $63k–83k, lowest cash ≥ ~$2k; Medium out-of-home in the top 10 by score $42k–72k; Low or High everywhere bankrupt within a week; doing nothing bankrupt on day 44.
+
+### 6.15 A reason to make money: team, shops and monthly goals (2026-11-23)
+
+**The problem.** Playtest: "great so far, but not fun". Money had nowhere to go. The only thing to buy was ads, and only 9–15 of 76 neighborhoods pay for any product, so once those ran at their best level, extra cash was just a score. The ceiling was fixed (perfect play tops out at a set profit per day) and since events were cut the world never changes, so the run was a puzzle solved in the first few weeks and then watched. Fun tycoon games turn money into something that raises what you can earn, and set a target that keeps rising. This adds both.
+
+**You start alone.** Day 1 you can buy digital ads at Low only, and running the business costs $40/day (was a flat $120, which bankrupted Hard players before their first ads built up).
+
+**Hires** unlock levels, one channel at a time. Each costs a signing fee once and a salary every day, and is permanent (no firing: each hire is a real commitment).
+
+| Channel | Hire | Unlocks | Signing | Salary/day |
+|---|---|---|---|---|
+| Digital | (you) | Low | | |
+| Digital | Senior digital buyer | Medium | $3,000 | $35 |
+| Digital | Lead digital buyer | High | $6,000 | $20 |
+| Out-of-home | Out-of-home buyer | Low | $2,500 | $25 |
+| Out-of-home | Senior out-of-home buyer | Medium | $5,000 | $40 |
+| Out-of-home | Lead out-of-home buyer | High | $6,000 | $20 |
+
+Medium is where most of the money is; High rarely pays (6.11), so lead buyers are cheap to keep but often still not worth it. That's deliberate: for supplements, Easy shows the lead digital buyer at about −$20/day. Which ladder to climb first depends on the product: out-of-home for busy, store-heavy products, digital for scattered audiences.
+
+**Separate levels per channel.** With buyers per channel, one level shared by both channels made no sense (a senior digital buyer alone couldn't run "Medium" if out-of-home was ticked). Each zone now has a level per channel, 16 plans in all, and the estimates, suggestions and calibration cover all of them. Mixed plans like Medium out-of-home + Low digital are the best plan in some zones (a test checks).
+
+**Shops.** Open your own shop in any neighborhood: $8,000 for the first, ×1.6 for each one after; rent $20 + $60 × busyness per day. A shop works like a Low out-of-home ad that never stops (walk-ins, spills over like one) and raises that zone's sales by 40% (a store that carries you, that you own). It needs no buyer. Most products have one standout neighborhood for a shop (+$90–150/day after rent on Easy's estimate) and a few marginal ones, so finding it is the decision. Tuned down from $4,000 and +50%, when a perfect bot opened four shops by day 86.
+
+**Monthly goals.** Each 30-day month has a goal for average profit per day: $25, $150, $250, $320, $370, $400. Hires and shops are investments and don't count against it. Meeting it earns a ★ and a bonus of 10 days of the goal (at least $250). Missing one costs nothing (soft goals). The run ends with a rating out of 6 stars, so final cash finally reads as good or bad.
+
+**Where it lives on screen.** A floating bubble top left shows the stars, this month's average against the goal, and a green dot when you can afford a hire or a shop; click it for the goals, both hiring ladders (Easy shows what each hire adds per day at best) and your shops. Open a shop from a neighborhood's card. Locked levels show 🔒 and who to hire.
+
+**Balance** (`npm run report`, starting alone, median of 5 seeds, 20 products). Bots use Easy's estimates, so they are upper bounds on a human:
+
+| Strategy | Stars | Profit/day in month 6 | End cash |
+|---|---|---|---|
+| Never hire (best digital Low plans) | 0 on 18 products, 1 on 2 | ~$116 | ~$25k |
+| Hire or open a shop when it pays, keep $1,500 spare | 6 on 16 products | ~$505 | ~$62k |
+| Buy everything as soon as affordable | 6 on 17 products | ~$490 | ~$50k |
+
+Signing fees were doubled from a first try ($1,500–2,500), when the grower had bought everything by month 3 and cash piled up again. Now purchases spread to around day 120. One product (pet food) bankrupts the "grow" bot: it hires an out-of-home buyer on day 0 and switches on every profitable zone at once with $2,500 left. A human can do the same; the end screen's tip names it.
+
+Not yet: a late-game money sink once everything is bought (more shops only help where they pay), and a playtest by hand on Normal/Hard to check that the goals feel reachable for a person, not just a bot.
 
 ### 6.13 What the player knows (difficulty, 2026-11-22)
 

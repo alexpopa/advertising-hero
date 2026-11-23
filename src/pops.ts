@@ -4,7 +4,7 @@
  * sale ever, ✓ a neighborhood just added to your plan. Purely visual: nothing here changes
  * the game.
  */
-import { awareness, type GameState, type World } from "./sim";
+import { awareness, isOn, type GameState, type World } from "./sim";
 
 export type PopKind = "lead" | "order" | "first" | "added";
 
@@ -50,7 +50,7 @@ export function popsForDay(world: World, before: GameState, after: GameState, da
     const i = z.index;
     const cust = after.lastDay.customers[i];
     const gain = Math.max(0, awareness(after, i) - awareness(before, i)) * 100;
-    const noticed = cust * LEADS_PER_ORDER + (after.levels[i] > 0 ? gain * LEADS_PER_AWARENESS_POINT : 0);
+    const noticed = cust * LEADS_PER_ORDER + (isOn(after.plans[i]) ? gain * LEADS_PER_AWARENESS_POINT : 0);
     if (noticed >= 1)
       leads.push({ pop: { id: popId(), zone: i, kind: "lead", text: `+${Math.round(noticed)}`, delay: spread() }, weight: noticed });
     if (cust >= 0.3 && Math.random() < Math.min(1, cust))

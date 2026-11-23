@@ -7,19 +7,22 @@
  * the score and estimates once you've advertised here for two weeks. Hard never shows
  * estimates: only your real results.
  */
-import { useState } from "react";
 import {
   C,
   CHANNELS,
+  CHANNEL_ICONS,
   CHANNEL_NAMES,
-  FORMAT_NAMES,
-  channelsOf,
-  formatOf,
   LEVEL_NAMES,
   adCost,
   awareness,
-  estimate,
+  bestAllowed,
+  estimateFor,
   explain,
+  isOn,
+  planName,
+  shopCost,
+  shopGain,
+  shopRent,
   labelName,
   reach,
   roles,
@@ -41,7 +44,17 @@ interface Props {
   onClose: () => void;
   state: GameState;
   onSetPlan: (change: Partial<Plan>) => void;
+  onOpenShop: () => void;
 }
+
+/** Who you'd need to hire to run this level in this channel, or null if your team can. */
+function lockedBy(state: GameState, ch: Channel, level: Level): string | null {
+  if (state.staff[ch] >= level) return null;
+  return C.hires[ch][state.staff[ch] + 1]?.title ?? null;
+}
+
+/** "a senior digital buyer", "an out-of-home buyer" */
+const aOrAn = (title: string) => (/^[aeiou]/i.test(title) ? "an " : "a ") + title.toLowerCase();
 
 /** Can the player see this zone's score and estimates? */
 export function estimatesShown(state: GameState, zone: number): boolean {
@@ -56,13 +69,14 @@ const ROLE_KIND: Record<string, string> = {
   competitor: "Competitors",
 };
 
-export function ZonePanel({ world, zone, examples, onClose, state, onSetPlan }: Props) {
+export function ZonePanel({ world, zone, examples, onClose, state, onSetPlan, onOpenShop }: Props) {
   const z = world.zones[zone];
   const known = state.difficulty === "easy" ? undefined : state.known;
   const e = explain(world, zone, known);
   const bin = scoreBin(z.score);
   const shown = estimatesShown(state, zone);
-  const plan: Plan = { level: state.levels[zone], format: state.formats[zone] };
+  const plan = state.plans[zone];
+  const bestHere = bestAllowed(world, state.staff, zone, state.shops.includes(zone));
   const role = roles(world.product);
 
   // Real places for the place types the player knows, strongest presence first.
@@ -96,7 +110,31 @@ export function ZonePanel({ world, zone, examples, onClose, state, onSetPlan }: 
         </div>
       )}
 
-      <AdControls key={zone} world={world} zone={zone} state={state} plan={plan} onSetPlan={onSetPlan} />
+      <AdControls world={world} zone={zone} state={state} plan={plan} onSetPlan={onSetPlan} />
+      {state.difficulty === "easy" && (
+        <p className="small">
+          {isOn(bestHere.plan) ? (
+            <>
+              <b>Best for your team:</b> {planName(bestHere.plan)} (+{usd(bestHere.profit)}/day){" "}
+              {(bestHere.plan.ooh !== plan.ooh || bestHere.plan.digital !== plan.digital) && (
+                <button className="link" onClick={() => onSetPlan(bestHere.plan)} disabled={state.status !== "playing"}>
+                  Use it
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <b>No ads pay here</b> for {world.product.name.toLowerCase()} with your team.
+            </>
+          )}
+        </p>
+      )}
+      {!shown && state.difficulty === "normal" && (
+        <p className="muted small">
+          Estimates unlock after {C.insightDays} days of ads ({state.adDays[zone]}/{C.insightDays})
+        </p>
+      )}
+      <ShopRow world={world} zone={zone} state={state} shown={shown} onOpenShop={onOpenShop} />
 
       <h3>What you know here</h3>
       <ul className="why">
@@ -105,54 +143,6 @@ export function ZonePanel({ world, zone, examples, onClose, state, onSetPlan }: 
         ))}
       </ul>
       {e.unknownLine && <p className="muted small">{e.unknownLine}</p>}
-
-      <h3>Ad options</h3>
-      <table className="levels" aria-label={`${FORMAT_NAMES[plan.format]} ads, once built up`}>
-        <thead>
-          <tr>
-            <th scope="col">Level</th>
-            <th scope="col">Cost/day</th>
-            {shown && <th scope="col">Customers/day</th>}
-            {shown && <th scope="col">Profit/day</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {([1, 2, 3] as Level[]).map((l) => {
-            const est = estimate(z, { ...plan, level: l });
-            const isBest = shown && l === z.best.level && plan.format === z.best.format;
-            const isYours = plan.level === l;
-            return (
-              <tr key={l} className={[isBest ? "best" : "", isYours ? "yours" : ""].join(" ").trim() || undefined}>
-                <th scope="row">{LEVEL_NAMES[l]}</th>
-                <td>{usd(adCost(world, state, zone, l, plan.format))}</td>
-                {shown && <td>{est.customers.toFixed(1)}</td>}
-                {shown && (
-                  <td className={est.profit >= 0 ? "pos" : "neg"}>
-                    {est.profit >= 0 ? "+" : ""}
-                    {usd(est.profit)}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {state.difficulty === "easy" && z.best.level > 0 && (
-        <p className="small">
-          <b>Best here:</b> {LEVEL_NAMES[z.best.level]} {FORMAT_NAMES[z.best.format].toLowerCase()} ads (+{usd(z.bestProfit)}
-          /day)
-        </p>
-      )}
-      {state.difficulty === "easy" && z.best.level === 0 && (
-        <p className="small">
-          <b>No plan pays here</b> for {world.product.name.toLowerCase()}.
-        </p>
-      )}
-      {!shown && state.difficulty === "normal" && (
-        <p className="muted small">
-          Estimates unlock after {C.insightDays} days of ads ({state.adDays[zone]}/{C.insightDays})
-        </p>
-      )}
 
       {exampleLines.length > 0 && (
         <>
@@ -190,6 +180,11 @@ function channelHint(world: World, zone: number, ch: Channel, shown: boolean): s
   return e >= hi ? "strong here" : e <= lo ? "weak here" : "average here";
 }
 
+/**
+ * One row per channel: Off, Low, Medium, High, each with its cost per day (and, where
+ * estimates are shown, this zone's profit per day with that choice and the other channel as
+ * it is). Levels your team can't buy yet are locked and name who to hire.
+ */
 function AdControls({
   world,
   zone,
@@ -203,79 +198,85 @@ function AdControls({
   plan: Plan;
   onSetPlan: (change: Partial<Plan>) => void;
 }) {
-  const { level } = plan;
-  // The level picked while no channel is ticked (or the running level), so ticking a box
-  // starts ads at the level you chose.
-  const [pickedLevel, setPickedLevel] = useState<Level>(level > 0 ? level : 1);
-  const shownLevel = level > 0 ? level : pickedLevel;
-  const ticked = (ch: Channel) => level > 0 && channelsOf(plan.format).includes(ch);
   const known = awareness(state, zone);
   const strength = known / reach(steadyPressure(3));
   const customers = state.lastDay.customers[zone];
   const profit = zoneDayProfit(state, zone);
-  const active = level > 0 || customers > 0.05;
+  const on = isOn(plan);
+  const active = on || customers > 0.05;
   const disabled = state.status !== "playing";
   const learning = state.difficulty !== "easy" && unknownCount(world, state.known) > 0;
   const shown = estimatesShown(state, zone);
-
-  const toggle = (ch: Channel) => {
-    const ooh = ch === "ooh" ? !ticked("ooh") : ticked("ooh");
-    const digital = ch === "digital" ? !ticked("digital") : ticked("digital");
-    const format = formatOf(ooh, digital);
-    onSetPlan(format ? { level: shownLevel, format } : { level: 0 });
-  };
-  const pickLevel = (l: Level) => {
-    setPickedLevel(l);
-    if (level > 0) onSetPlan({ level: l });
-  };
+  const est = estimateFor(world, state, zone, plan);
 
   return (
     <section className="ad-controls" aria-label="Your ads here">
       <h3>Your ads here</h3>
-      <div className="channels" role="group" aria-label="Where your ads run">
-        {CHANNELS.map((ch) => (
-          <label key={ch} className={"channel" + (ticked(ch) ? " on" : "")}>
-            <input type="checkbox" checked={ticked(ch)} disabled={disabled} onChange={() => toggle(ch)} />
-            <span>
-              <b>{CHANNEL_NAMES[ch]}</b>
-              <span className="small muted">{channelHint(world, zone, ch, shown)}</span>
-            </span>
-            <span className="channel-cost small">
-              {usd(adCost(world, state, zone, shownLevel, ch))}
-              /day
-            </span>
-          </label>
-        ))}
-      </div>
-      <div className="segmented levels-pick" role="radiogroup" aria-label="How hard each channel runs">
-        {([1, 2, 3] as Level[]).map((l) => (
-          <button
-            key={l}
-            role="radio"
-            aria-checked={shownLevel === l}
-            className={shownLevel === l ? "on" : ""}
-            disabled={disabled}
-            onClick={() => pickLevel(l)}
-          >
-            <b>{LEVEL_NAMES[l]}</b>
-            <span className="small">
-              {usd(adCost(world, state, zone, l, level > 0 ? plan.format : "ooh"))}/day
-            </span>
-          </button>
-        ))}
-      </div>
-      {level === 0 ? (
+      {CHANNELS.map((ch) => {
+        const firstLock = lockedBy(state, ch, 1);
+        return (
+          <div key={ch} className={"channel-row" + (plan[ch] > 0 ? " on" : "")}>
+            <div className="channel-label">
+              <b>
+                <span aria-hidden>{CHANNEL_ICONS[ch]}</span> {CHANNEL_NAMES[ch]}
+              </b>
+              <span className="small muted">{firstLock ? `🔒 Hire ${aOrAn(firstLock)}` : channelHint(world, zone, ch, shown)}</span>
+            </div>
+            <div className="segmented levels-pick" role="radiogroup" aria-label={`${CHANNEL_NAMES[ch]} level`}>
+              {([0, 1, 2, 3] as Level[]).map((l) => {
+                const lock = lockedBy(state, ch, l);
+                const option = { ...plan, [ch]: l };
+                const optCost = adCost(world, zone, { ooh: 0, digital: 0, [ch]: l });
+                const optProfit = estimateFor(world, state, zone, option).profit;
+                return (
+                  <button
+                    key={l}
+                    role="radio"
+                    aria-checked={plan[ch] === l}
+                    className={(plan[ch] === l ? "on" : "") + (lock ? " locked" : "")}
+                    disabled={disabled || !!lock}
+                    title={lock ? `Hire ${aOrAn(lock)} to run ${LEVEL_NAMES[l]}` : undefined}
+                    onClick={() => onSetPlan({ [ch]: l })}
+                  >
+                    <b>
+                      {lock && <span aria-label="Locked">🔒 </span>}
+                      {LEVEL_NAMES[l]}
+                    </b>
+                    {lock ? (
+                      <span className="small">hire first</span>
+                    ) : l === 0 ? (
+                      <span className="small">$0</span>
+                    ) : (
+                      <span className="small">{usd(optCost)}/day</span>
+                    )}
+                    {shown && !lock && (
+                      <span
+                        className={"small " + (optProfit >= 0 ? "pos" : "neg")}
+                        title="Profit per day here once ads have built up, with the other channel as it is"
+                      >
+                        {optProfit >= 0 ? "+" : ""}
+                        {usd(optProfit)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+      {!on ? (
         <p className="muted small">No ads here</p>
       ) : (
         <p className="plan-result small">
-          <b>Your plan:</b> {usd(adCost(world, state, zone, level, plan.format))}/day
+          <b>Your plan:</b> {usd(adCost(world, zone, plan))}/day
           {shown && (
             <>
               {" "}
-              → {estimate(world.zones[zone], plan).customers.toFixed(1)} customers,{" "}
-              <span className={estimate(world.zones[zone], plan).profit >= 0 ? "pos" : "neg"}>
-                {estimate(world.zones[zone], plan).profit >= 0 ? "+" : ""}
-                {usd(estimate(world.zones[zone], plan).profit)}/day
+              → {est.customers.toFixed(1)} customers,{" "}
+              <span className={est.profit >= 0 ? "pos" : "neg"}>
+                {est.profit >= 0 ? "+" : ""}
+                {usd(est.profit)}/day
               </span>
             </>
           )}
@@ -292,25 +293,69 @@ function AdControls({
               {Math.round(known * 100)}% reached
             </dd>
           </div>
-          {state.day > 0 && (
-            <div>
-              <dt>Yesterday</dt>
-              <dd>
-                {customers.toFixed(1)} customers,{" "}
-                <span className={profit >= 0 ? "pos" : "neg"}>
-                  {profit >= 0 ? "+" : ""}
-                  {usd(profit)}
-                </span>
-              </dd>
-            </div>
-          )}
+          <div>
+            <dt>Yesterday</dt>
+            <dd>
+              {customers.toFixed(1)} customers,{" "}
+              <span className={profit >= 0 ? "pos" : "neg"}>
+                {profit >= 0 ? "+" : ""}
+                {usd(profit)}
+              </span>
+            </dd>
+          </div>
         </dl>
       )}
-      {learning && level > 0 && state.adDays[zone] < C.insightDays && (
+      {learning && on && state.adDays[zone] < C.insightDays && (
         <p className="muted small">
           Next insight in {C.insightDays - state.adDays[zone]} day{C.insightDays - state.adDays[zone] === 1 ? "" : "s"}
         </p>
       )}
     </section>
+  );
+}
+
+/** Your shop here, or a button to open one. */
+function ShopRow({
+  world,
+  zone,
+  state,
+  shown,
+  onOpenShop,
+}: {
+  world: World;
+  zone: number;
+  state: GameState;
+  shown: boolean;
+  onOpenShop: () => void;
+}) {
+  const rent = shopRent(world, zone);
+  if (state.shops.includes(zone))
+    return (
+      <p className="shop-row small">
+        🏪 <b>Your shop</b> · rent {usd(rent)}/day
+      </p>
+    );
+  const cost = shopCost(state);
+  const gain = shopGain(world, state, zone);
+  const short = state.cash < cost;
+  return (
+    <div className="shop-row">
+      <button className="btn btn-small" disabled={state.status !== "playing" || short} onClick={onOpenShop}>
+        🏪 Open a shop · {usd(cost)}
+      </button>
+      <span className="small muted">
+        + {usd(rent)}/day rent
+        {shown && (
+          <>
+            {" · "}
+            <span className={gain >= 0 ? "pos" : "neg"}>
+              {gain >= 0 ? "+" : ""}
+              {usd(gain)}/day
+            </span>
+          </>
+        )}
+        {short && ` · need ${usd(cost - state.cash)} more`}
+      </span>
+    </div>
   );
 }

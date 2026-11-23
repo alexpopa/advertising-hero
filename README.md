@@ -11,9 +11,10 @@ Ad Empire SF is a small tycoon game that runs in the browser. You pick a product
 1. **Pick a product:** 20 of them, from cold brew subscriptions and protein powder to houseplant delivery, e-bike rental and city tours. Each is tagged Starter, Tricky or Expert depending on how many surprises it hides.
 2. **Pick a difficulty:** **Easy** shows everything: which places draw your buyers, which stores carry you, who you're up against, plus suggestions. **Normal** tells you who your buyers are and one or two places that matter. **Hard** gives you only a line about your buyers. On Normal and Hard you learn one new thing every time you run ads in a neighborhood for two weeks ("Juice bars compete with you: they take sales nearby").
 3. **Read the map:** color it by any of ~110 kinds of places (gyms, bars, pharmacies, hotels, schools…), alone or added together. Some places draw your buyers, some stores sell your product, some compete with it, and some just look relevant. Click a neighborhood to see what's there and what ads cost.
-4. **Buy ads:** for each neighborhood tick **out-of-home** (billboards, bus shelters, posters: strongest in busy areas and near stores that sell you, priced at a downtown premium), **digital** (targeted ads that follow where your buyers are, no downtown premium), both, or neither, and pick how hard they run (Low, Medium, High). Each ticked channel costs its own money and reaches its own people. Ads take about a month to reach full strength, have diminishing returns and fade after you stop; out-of-home ads also spill over a little into neighboring areas. Every campaign has a daily fee, so advertising everywhere is the fastest way to go broke.
-5. **Earn and reinvest:** customers arrive from where your ads run. Cut what loses money, expand what works.
-6. **Finish:** after day 90 you see your net worth, your best and worst neighborhoods, and your cash over time. Run out of cash for three days and you're bankrupt.
+4. **Buy ads:** for each neighborhood set **out-of-home** (billboards, bus shelters, posters: strongest in busy areas and near stores that sell you, priced at a downtown premium) and **digital** (targeted ads that follow where your buyers are, no downtown premium) separately to Off, Low, Medium or High. Each channel costs its own money and reaches its own people. Ads take about a month to reach full strength, have diminishing returns and fade after you stop; out-of-home ads also spill over a little into neighboring areas. Every campaign has a daily fee, so advertising everywhere is the fastest way to go broke.
+5. **Grow:** you start alone, able to buy only Low digital ads. Profit pays for hires: an out-of-home buyer, then senior and lead buyers in each channel, each unlocking the next level for good, at a signing fee and a daily salary. Or open your own shop in one neighborhood: walk-ins and extra sales there, for rent.
+6. **Hit the monthly goals:** each month has a profit-per-day goal that keeps rising. Meet it for a star and a cash bonus. The question every month: keep the cash, or spend it to grow?
+7. **Finish:** after 180 days you see your stars, your team and shops, your best and worst neighborhoods, and your cash over time. Run out of cash for three days and you're bankrupt.
 
 ## Where the numbers come from
 
@@ -45,11 +46,12 @@ The result is **76 neighborhoods** in about 220 KB of data, small enough to ship
 
 - **Neighborhood names are approximate.** Boundaries follow the nearest named point, not official lines, so a few areas are bigger or smaller than locals would draw them.
 - **Treasure Island isn't in the game.** Overture has no neighborhood name anywhere near it.
-- **No shops of your own.** Your brand sells online and through other people's stores; there's no property, staff or inventory. Those would double the scope without making the core decision more interesting.
+- **Money needed a reason.** Early versions were a puzzle you solved in the first few weeks: once your good neighborhoods were running, extra cash had nothing to buy. Now you start alone with cheap digital ads, and profit pays for buyers who unlock stronger ads, and for shops of your own. Monthly goals that keep rising set the pace. They're soft goals (a star and a bonus, never game over), because the run already ends if you go bankrupt.
+- **Hiring stays simple.** A hire does one thing: it unlocks the next ad level in one channel. No skills, morale or firing. Hires are permanent, so each one is a real bet. Shops are one-off bets on a single neighborhood, with no stock or staff to manage.
 - **Difficulty changes what you know, not the numbers.** The economy is the same on every level. Harder levels hide which places matter, and you find out by advertising. That keeps the map honest: every clue is real Overture data.
 - **Some places are red herrings on purpose.** Juice bars look like protein buyers but compete with you; condos look like laundry customers but have washers. Which place does what is a design choice for each product, kept in one file (`scripts/categories.json`), not a claim about the real world.
 - **No random events for now.** Street fairs, rival campaigns and price spikes landed in random neighborhoods, usually ones you weren't advertising in, and were over before slow-building ads could react. They added noise, not decisions, so they're out until they can be made to matter.
-- **Two ad channels you can stack, each with its own job.** Earlier versions had up to four formats plus a weekly schedule per campaign; they balanced, but every neighborhood became three decisions. Then a cut-down version made one channel a cheaper copy of the other that never won, which was pointless. Now out-of-home (the industry term for billboards and posters) follows foot traffic and stores, digital follows your buyers with no downtown premium, and the best neighborhoods are worth both.
+- **Two ad channels, each with its own level and its own job.** Earlier versions had up to four formats plus a weekly schedule per campaign; they balanced, but every neighborhood became three decisions. Then a cut-down version made one channel a cheaper copy of the other that never won, which was pointless. Now out-of-home (the industry term for billboards and posters) follows foot traffic and stores, digital follows your buyers with no downtown premium, and the best neighborhoods are worth both, often at different levels.
 - **One city.** San Francisco keeps the data small and lets the balance be tuned against one map.
 - **No accounts or leaderboards.** Progress is saved in your browser, so there's no server to run.
 - **The map shows about 110 of Overture's 260 place categories:** everything the products use, plus related places that give context (or mislead). Banks, law firms, places of worship and the long tail are left out to keep the picker short.
@@ -96,7 +98,8 @@ python scripts/build_zones.py    # writes public/data/
 - [ ] Polish and deploy
 
 Later:
-- [x] 20 products with stockists, red herrings, stackable out-of-home and digital ads, and three difficulty levels
+- [x] 20 products with stockists, red herrings, out-of-home and digital ads, and three difficulty levels
+- [x] Growth: hire buyers to unlock ad levels, open your own shops, monthly goals with stars
 - [ ] Color the map by people and transit stops per km² (plan in DESIGN.md 11.1)
 
 Planned stack: Vite, React, TypeScript, MapLibre GL, hosted as a static site.

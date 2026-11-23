@@ -14,7 +14,19 @@ import { ZonePanel } from "./ZonePanel";
 import { MapControl } from "./LayersPanel";
 import { layerView, normalizeLayer, type MapLayer } from "./layers";
 import { loadGameData, type GameData } from "./data";
-import { buildWorld, initGame, type Difficulty, type GameState, type Plan } from "./sim";
+import {
+  buildWorld,
+  clampPlan,
+  hire,
+  initGame,
+  isOn,
+  openShop,
+  topLevel,
+  type Channel,
+  type Difficulty,
+  type GameState,
+  type Plan,
+} from "./sim";
 import { loadGame, saveGame, type SavedGame } from "./storage";
 import { popId, type Pop } from "./pops";
 
@@ -30,8 +42,8 @@ export function App() {
   /** Bubbles over the map; only recent ones are kept (the map shows each id once). */
   const [pops, setPops] = useState<Pop[]>([]);
   const addPops = useCallback((p: Pop[]) => p.length && setPops((old) => [...old.slice(-80), ...p]), []);
-  const levelsNow = useRef<number[]>([]);
-  levelsNow.current = game?.state.levels ?? [];
+  const plansNow = useRef<Plan[]>([]);
+  plansNow.current = game?.state.plans ?? [];
   const layer: MapLayer = normalizeLayer(game?.layer) ?? { kind: game?.state.difficulty === "easy" ? "fit" : "none" };
   const setLayer = useCallback((l: MapLayer) => setGame((g) => (g ? { ...g, layer: l } : g)), []);
 
@@ -59,6 +71,11 @@ export function App() {
     if (game) saveGame(game);
   }, [game]);
 
+  // The map badge shows each zone's higher channel level. Memoized: a new array would
+  // repaint the map on every render.
+  const plans = game?.state.plans;
+  const mapLevels = useMemo(() => plans?.map(topLevel), [plans]);
+
   // Show the results shortly after a run finishes. Only when the status changes, so closing
   // the results to look at the map doesn't bounce back.
   const status = game?.state.status;
@@ -73,19 +90,26 @@ export function App() {
     (f: (s: GameState) => GameState) => setGame((g) => (g ? { ...g, state: f(g.state) } : g)),
     [],
   );
-  /** Change a zone's campaign: its level, its format, or both. */
+  /** Change a zone's campaign: one channel's level, or both. */
   const setPlan = useCallback(
     (zone: number, change: Partial<Plan>) => {
-      if (change.level && !levelsNow.current[zone]) addPops([{ id: popId(), zone, kind: "added", text: "Added", delay: 0 }]);
+      const was = plansNow.current[zone];
+      if (was && !isOn(was) && isOn({ ...was, ...change }))
+        addPops([{ id: popId(), zone, kind: "added", text: "Added", delay: 0 }]);
       setState((s) => {
         if (s.status !== "playing") return s;
-        const at = <T,>(arr: T[], v: T | undefined) => (v === undefined ? arr : arr.map((x, i) => (i === zone ? v : x)));
-        return {
-          ...s,
-          levels: at(s.levels, change.level),
-          formats: at(s.formats, change.format),
-        };
+        // Never above what the team can buy in each channel.
+        const plan = clampPlan(s.staff, { ...s.plans[zone], ...change });
+        return { ...s, plans: s.plans.map((p, i) => (i === zone ? plan : p)) };
       });
+    },
+    [setState, addPops],
+  );
+  const onHire = useCallback((ch: Channel) => setState((s) => hire(s, ch)), [setState]);
+  const onOpenShop = useCallback(
+    (zone: number) => {
+      addPops([{ id: popId(), zone, kind: "added", text: "Shop opened", delay: 0 }]);
+      setState((s) => openShop(s, zone));
     },
     [setState, addPops],
   );
@@ -120,11 +144,12 @@ export function App() {
           world={world}
           selected={inGame ? selected : null}
           onSelect={inGame ? setSelected : () => {}}
-          levels={inGame ? game.state.levels : undefined}
+          levels={inGame ? mapLevels : undefined}
           paint={view.paint}
           describe={view.describe}
           zoneCardOpen={inGame && selected !== null}
           pops={inGame ? pops : undefined}
+          shops={inGame ? game.state.shops : undefined}
         />
       )}
 
@@ -153,6 +178,7 @@ export function App() {
             setPlan={setPlan}
             onSelect={setSelected}
             onPops={addPops}
+            onHire={onHire}
             zoneOpen={selected !== null}
             paused={phase !== "play"}
             onMenu={() => {
@@ -176,6 +202,7 @@ export function App() {
               onClose={() => setSelected(null)}
               state={game.state}
               onSetPlan={(p) => setPlan(selected, p)}
+              onOpenShop={() => onOpenShop(selected)}
             />
           )}
         </>

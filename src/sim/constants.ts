@@ -106,8 +106,65 @@ export const C = {
   noiseMin: 0.75,
   noiseMax: 1.25,
 
-  fixedOverhead: 120,
+  /**
+   * Running the business with nobody hired yet, $/day. Salaries and shop rent come on top
+   * (DESIGN.md 6.15). It was a flat $120 before the team existed, which bankrupted Hard
+   * players before their first ads had built up.
+   */
+  fixedOverhead: 40,
+  /**
+   * The overhead the money scale is calibrated against (see perfectDailyProfit). Kept at the
+   * old $120 so the per-zone economy didn't change when the team was added.
+   */
+  calibrationOverhead: 120,
   variableOverhead: 0.1,
+
+  /**
+   * Your team (DESIGN.md 6.15). You start alone, able to buy digital ads at Low. Each hire
+   * unlocks the next level of one channel, costs a one-off signing fee and a salary per day,
+   * and is permanent. Indexed by the level it unlocks (index 0 unused); digital Low is yours
+   * from the start. Medium is where most of the money is; High only pays for some products,
+   * so lead buyers are cheap to keep but not always worth it.
+   */
+  hires: {
+    ooh: [
+      null,
+      { title: "Out-of-home buyer", signing: 2500, salary: 25 },
+      { title: "Senior out-of-home buyer", signing: 5000, salary: 40 },
+      { title: "Lead out-of-home buyer", signing: 6000, salary: 20 },
+    ],
+    digital: [
+      null,
+      null,
+      { title: "Senior digital buyer", signing: 3000, salary: 35 },
+      { title: "Lead digital buyer", signing: 6000, salary: 20 },
+    ],
+  },
+
+  /**
+   * Your own shop in a neighborhood: a one-off cost (each shop costs more than the last),
+   * rent per day that rises with how busy the neighborhood is, and two permanent effects
+   * there: walk-ins (the storefront works like a Low out-of-home ad that never stops, and
+   * spills over like one) and more sales (potential x (1 + boost), a store that carries you
+   * and that you own).
+   */
+  shop: {
+    cost: 8000,
+    costGrowth: 1.6,
+    rentMin: 20,
+    rentSpan: 60,
+    pressure: 1,
+    boost: 0.4,
+  },
+
+  /**
+   * Monthly goals: average profit per day over each 30-day month (before hires and shops,
+   * which are investments). Hitting one earns a star and a bonus of `goalBonusDays` days of
+   * the goal. Missing one costs nothing.
+   */
+  monthDays: 30,
+  goals: [25, 150, 250, 320, 370, 400],
+  goalBonusDays: 10,
 
   /** Game over after this many days in a row with cash below $0. */
   bankruptDays: 3,

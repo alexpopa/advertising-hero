@@ -3,8 +3,10 @@
  */
 import { C } from "./constants";
 import {
-  FORMATS,
-  channelsOf,
+  ALL_PLANS,
+  CHANNELS,
+  OFF,
+  isOn,
   type CategoriesData,
   type Estimate,
   type Channel,
@@ -44,14 +46,10 @@ export function reach(pressure: number): number {
 /** Low-level price per day of each channel in a zone. */
 export type Prices = Record<Channel, number>;
 
-/** Ad cost per day: for each channel it runs, that channel's price x level, plus its campaign fee. */
+/** Ad cost per day: for each channel it runs, that channel's price x its level, plus its campaign fee. */
 export function adCostPerDay(prices: Prices, plan: Plan): number {
-  if (plan.level === 0) return 0;
-  return channelsOf(plan.format).reduce((a, ch) => a + prices[ch] * C.levelMult[plan.level] + C.formats[ch].fee, 0);
+  return CHANNELS.reduce((a, ch) => (plan[ch] > 0 ? a + prices[ch] * C.levelMult[plan[ch]] + C.formats[ch].fee : a), 0);
 }
-
-/** Is this channel running in this plan? */
-export const runs = (plan: Plan, ch: Channel) => plan.level > 0 && channelsOf(plan.format).includes(ch);
 
 /** Pressure a channel settles at if it holds this level forever (ignoring spillover). */
 export function steadyPressure(level: Level): number {
@@ -186,22 +184,17 @@ export function buildWorld(zonesData: ZoneData[], categories: CategoriesData, pr
       priceDigital: priceDigital[i],
       pricePct: pricePct[i],
       score: 0,
-      est: {} as ZoneModel["est"],
-      best: { level: 0, format: "ooh" },
+      est: [],
+      best: { ...OFF },
       bestProfit: 0,
       neighbors: z.neighbors.map((id) => ids.get(id)).filter((x): x is number => x !== undefined),
     };
   });
 
-  const plans: Plan[] = [];
-  for (const format of FORMATS) for (const level of [1, 2, 3] as Level[]) plans.push({ level, format });
+  const plans: Plan[] = ALL_PLANS.filter(isOn);
   // Customers per unit of pmax for each plan.
   const unitsOf = (z: ZoneModel, p: Plan) =>
-    channelMix(
-      z.formatEff,
-      runs(p, "ooh") ? reach(steadyPressure(p.level)) : 0,
-      runs(p, "digital") ? reach(steadyPressure(p.level)) : 0,
-    );
+    channelMix(z.formatEff, reach(steadyPressure(p.ooh)), reach(steadyPressure(p.digital)));
   const units = zones.map((z) => plans.map((p) => unitsOf(z, p)));
   const pricesOf = (z: ZoneModel, k = 1): Prices => ({ ooh: k * z.price, digital: k * z.priceDigital });
 
@@ -210,7 +203,7 @@ export function buildWorld(zonesData: ZoneData[], categories: CategoriesData, pr
   const grossPerCustomer = unitMargin * (1 - C.variableOverhead);
   // 1. Purchase rate: median zone's Medium return with out-of-home ads = target (ad price only,
   //    before the fee, which only means something once the money scale is set).
-  const ref = plans.findIndex((p) => p.level === 2 && p.format === "ooh");
+  const ref = plans.findIndex((p) => p.ooh === 2 && p.digital === 0);
   const mediumReturn = zones
     .map((z, i) => (z.pmax * units[i][ref] * grossPerCustomer) / (z.price * C.levelMult[2]))
     .sort((a, b) => a - b);
@@ -223,7 +216,7 @@ export function buildWorld(zonesData: ZoneData[], categories: CategoriesData, pr
       (sum, z, i) =>
         sum +
         Math.max(0, ...plans.map((p, j) => k * z.pmax * units[i][j] * grossPerCustomer - adCostPerDay(pricesOf(z, k), p))),
-      -C.fixedOverhead,
+      -C.calibrationOverhead,
     );
   let lo = 0;
   let hi = 1;
@@ -244,19 +237,20 @@ export function buildWorld(zonesData: ZoneData[], categories: CategoriesData, pr
   // (return per ad dollar at Medium, with the best of out-of-home, digital or both).
   const roi: number[] = [];
   zones.forEach((z, i) => {
-    const off: Estimate = { customers: 0, cost: 0, profit: 0 };
-    for (const f of FORMATS) z.est[f] = [off];
+    z.est = [0, 1, 2, 3].map(() => new Array<Estimate>(4));
+    z.est[0][0] = { customers: 0, cost: 0, profit: 0 };
     plans.forEach((p, j) => {
       const customers = z.pmax * units[i][j];
       const cost = adCostPerDay(pricesOf(z), p);
       const profit = customers * unitMargin * (1 - C.variableOverhead) - cost;
-      z.est[p.format][p.level] = { customers, cost, profit };
+      z.est[p.ooh][p.digital] = { customers, cost, profit };
       if (profit > z.bestProfit) {
         z.bestProfit = profit;
         z.best = p;
       }
     });
-    roi.push(Math.max(...FORMATS.map((f) => z.est[f][2].profit / z.est[f][2].cost)));
+    const medium = [z.est[2][0], z.est[0][2], z.est[2][2]];
+    roi.push(Math.max(...medium.map((e) => e.profit / e.cost)));
   });
   percentiles(roi).forEach((p, i) => (zones[i].score = Math.round(p * 100)));
 
@@ -272,5 +266,5 @@ export function buildWorld(zonesData: ZoneData[], categories: CategoriesData, pr
 
 /** The steady-state estimate for a plan in a zone. */
 export function estimate(z: ZoneModel, plan: Plan): Estimate {
-  return z.est[plan.format][plan.level];
+  return z.est[plan.ooh][plan.digital];
 }
