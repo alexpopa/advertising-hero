@@ -2,11 +2,15 @@
  * Saves the current run in the browser. Storage can be unavailable (private windows,
  * blocked site data), so every access is wrapped: the game still runs, it just won't resume.
  */
-import type { GameState } from "./sim";
+import categories from "../scripts/categories.json";
+import { initialKnown, type CategoriesData, type GameState } from "./sim";
+import type { MapLayer } from "./layers";
 
 export interface SavedGame {
   brand: string;
   state: GameState;
+  /** What the map was colored by, so a reload comes back to the same view. */
+  layer?: MapLayer;
 }
 
 const GAME_KEY = "ad-empire-sf:game:v1";
@@ -17,10 +21,38 @@ export function loadGame(): SavedGame | null {
     const raw = localStorage.getItem(GAME_KEY);
     if (!raw) return null;
     const g = JSON.parse(raw) as SavedGame;
-    return g?.state?.version === 1 && typeof g.brand === "string" ? g : null;
+    if (typeof g?.brand !== "string" || !g.state) return null;
+    const state = migrate(g.state as unknown as Record<string, unknown>);
+    return state ? { ...g, state } : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Older saves carry on. Version 1 (before channels and insights) and version 2 (four formats
+ * and schedules, 2026-11-22) start with out-of-home ads ("digital" stays digital). Version 3
+ * (2026-11-23) called out-of-home "local" and had no digital awareness track.
+ */
+function migrate(s: Record<string, unknown>): GameState | null {
+  if (s.version === 4) return s as unknown as GameState;
+  if (s.version !== 1 && s.version !== 2 && s.version !== 3) return null;
+  const product = (categories as unknown as CategoriesData).products[s.productKey as string];
+  if (!product) return null;
+  const n = (s.levels as number[]).length;
+  const old = s.formats as string[] | undefined;
+  const { schedules: _a, pressureOnline: _b, ...rest } = s as Record<string, unknown>;
+  void _a;
+  void _b;
+  return {
+    ...(rest as unknown as GameState),
+    version: 4,
+    formats: new Array(n).fill(0).map((_, i) => (old?.[i] === "digital" ? "digital" : "ooh")),
+    pressureDigital: (s.pressureOnline as number[] | undefined) ?? new Array(n).fill(0),
+    adDays: (s.adDays as number[] | undefined) ?? new Array(n).fill(0),
+    known: (s.known as string[] | undefined) ?? initialKnown(product, s.difficulty as GameState["difficulty"]),
+    insights: (s.insights as GameState["insights"] | undefined) ?? [],
+  };
 }
 
 export function saveGame(game: SavedGame | null): void {

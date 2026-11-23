@@ -1,10 +1,11 @@
 /**
- * Full-screen MapLibre map of SF with the zones colored by score for the current product.
- * Hover shows the zone's name and score (so nothing depends on color alone); click selects.
+ * Full-screen MapLibre map of SF. Zones are colored by whatever map layer is picked (see
+ * layers.ts): nothing, the fit score, or the density of one kind of place. Hover shows the
+ * zone's name and the layer's value (so nothing depends on color alone); click selects.
  */
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
-import type { ExpressionSpecification, GeoJSONSource } from "maplibre-gl";
+import type { GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 // MapLibre works out its worker's address at runtime, which bundlers can't follow, so the
 // worker is shipped as its own file and its URL passed in. Without this the map is blank.
@@ -12,20 +13,37 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 
 maplibregl.setWorkerUrl(workerUrl);
 import { LEVEL_NAMES, type Level, type World } from "./sim";
-import { SCORE_BINS } from "./scale";
+import type { ZonePaint } from "./layers";
 
 const SF_BOUNDS: [number, number, number, number] = [-122.52, 37.7, -122.35, 37.835];
 const BASEMAP = "https://tiles.openfreemap.org/styles/positron";
-/** Matches the phone breakpoint in styles.css, where the panel becomes a bottom sheet. */
+/** Matches the phone breakpoint in styles.css, where the neighborhood card becomes a bottom sheet. */
 const PHONE_WIDTH = 720;
 const PHONE_PANEL_SHARE = 0.55;
 
-const fillColor: ExpressionSpecification = [
-  "step",
-  ["get", "score"],
-  SCORE_BINS[0].color,
-  ...SCORE_BINS.slice(1).flatMap((b) => [b.min, b.color] as [number, string]),
+/**
+ * Positron is all greys, so the uncolored map read as blank. Give water, parks and land
+ * soft natural tints. They stay pale and low-chroma so the data layers (orange places,
+ * blue fit score) are still the loudest thing on screen; water sits outside every zone,
+ * so its blue never reads as a fit score.
+ */
+const BASEMAP_TINTS: [layer: string, prop: string, color: string][] = [
+  ["background", "background-color", "#f4f1ea"],
+  ["landuse_residential", "fill-color", "#eeeae1"],
+  ["building", "fill-color", "#e6e1d6"],
+  ["building", "fill-outline-color", "#d9d3c6"],
+  ["park", "fill-color", "#d7e6cc"],
+  ["landcover_wood", "fill-color", "#c9ddbd"],
+  ["water", "fill-color", "#a9cde3"],
+  ["waterway", "line-color", "#a9cde3"],
+  ["road_area_pier", "fill-color", "#f4f1ea"],
+  ["road_pier", "line-color", "#f4f1ea"],
 ];
+
+function tintBasemap(m: maplibregl.Map) {
+  for (const [layer, prop, color] of BASEMAP_TINTS)
+    if (m.getLayer(layer)) m.setPaintProperty(layer, prop as "fill-color", color);
+}
 
 interface Props {
   geojson: GeoJSON.FeatureCollection;
@@ -34,8 +52,12 @@ interface Props {
   onSelect: (zone: number | null) => void;
   /** Current ad level per zone; zones with ads get an outline and an L/M/H badge. */
   levels?: Level[];
-  /** On phones, share of the screen covered by an open bottom sheet. */
-  sheetOpen?: boolean;
+  /** Fill per zone index, from the current map layer. */
+  paint: ZonePaint[];
+  /** Tooltip line per zone index (null: name only). */
+  describe: (zone: number) => string | null;
+  /** On phones the neighborhood card covers the lower part of the screen. */
+  zoneCardOpen?: boolean;
 }
 
 interface Hover {
@@ -44,7 +66,7 @@ interface Hover {
   zone: number;
 }
 
-export function MapView({ geojson, world, selected, onSelect, levels, sheetOpen }: Props) {
+export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOpen, paint, describe }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [ready, setReady] = useState(false);
@@ -72,10 +94,15 @@ export function MapView({ geojson, world, selected, onSelect, levels, sheetOpen 
         customAttribution: "Neighborhood data © Overture Maps Foundation",
       }),
     );
-    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    // No zoom buttons: scroll, pinch and double-click zoom, and the screen stays clear.
     map.current = m;
 
     m.on("load", () => {
+      // On phones the expanded credits sit under the map button; start them collapsed
+      // behind the (i) button. The Overture credit is also in the neighborhood card.
+      if (window.innerWidth <= PHONE_WIDTH)
+        container.current?.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+      tintBasemap(m);
       m.addSource("zones", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
       // Put the zones under the basemap's labels so street and place names stay readable.
       const firstLabel = m.getStyle().layers.find((l) => l.type === "symbol")?.id;
@@ -85,10 +112,11 @@ export function MapView({ geojson, world, selected, onSelect, levels, sheetOpen 
           type: "fill",
           source: "zones",
           paint: {
-            "fill-color": fillColor,
+            "fill-color": ["get", "fill"],
             // Opaque enough that the colors match the legend; hover changes the outline,
             // never the color (a darker fill would read as a better score).
-            "fill-opacity": 0.85,
+            // Zones with no layer color stay at opacity 0: still hoverable and clickable.
+            "fill-opacity": ["get", "fillOpacity"],
           },
         },
         firstLabel,
@@ -98,7 +126,13 @@ export function MapView({ geojson, world, selected, onSelect, levels, sheetOpen 
           id: "zones-line",
           type: "line",
           source: "zones",
-          paint: { "line-color": "#fcfcfb", "line-width": 1, "line-opacity": 0.9 },
+          // White between colored zones; a faint gray outline when the map is uncolored so
+          // the neighborhoods are still visible.
+          paint: {
+            "line-color": ["case", [">", ["get", "fillOpacity"], 0.5], "#fcfcfb", "#8f8e89"],
+            "line-width": 1,
+            "line-opacity": ["case", [">", ["get", "fillOpacity"], 0.5], 0.9, 0.35],
+          },
         },
         firstLabel,
       );
@@ -176,19 +210,23 @@ export function MapView({ geojson, world, selected, onSelect, levels, sheetOpen 
     return () => m.remove();
   }, []);
 
-  // Push scores for the current product into the map.
+  // Push the layer colors and ad levels into the map.
   useEffect(() => {
     if (!ready) return;
     const data: GeoJSON.FeatureCollection = {
       ...geojson,
-      features: geojson.features.map((f) => ({
-        ...f,
-        properties: {
-          ...f.properties,
-          score: world.byId.get(String(f.properties?.id))?.score ?? 0,
-          level: levels?.[world.byId.get(String(f.properties?.id))?.index ?? -1] ?? 0,
-        },
-      })),
+      features: geojson.features.map((f) => {
+        const i = world.byId.get(String(f.properties?.id))?.index ?? -1;
+        return {
+          ...f,
+          properties: {
+            ...f.properties,
+            fill: paint[i]?.color ?? "#000000",
+            fillOpacity: paint[i]?.opacity ?? 0,
+            level: levels?.[i] ?? 0,
+          },
+        };
+      }),
     };
     (map.current!.getSource("zones") as GeoJSONSource).setData(data);
     const badges: GeoJSON.FeatureCollection = {
@@ -202,7 +240,7 @@ export function MapView({ geojson, world, selected, onSelect, levels, sheetOpen 
         })),
     };
     (map.current!.getSource("badges") as GeoJSONSource).setData(badges);
-  }, [ready, geojson, world, levels]);
+  }, [ready, geojson, world, levels, paint]);
 
   // Outline the selected zone. On phones the panel covers the lower part of the screen,
   // so move the map to keep the selected zone in view above it.
@@ -213,23 +251,43 @@ export function MapView({ geojson, world, selected, onSelect, levels, sheetOpen 
     m.setFilter("zones-selected", ["==", ["get", "id"], id]);
     if (window.innerWidth <= PHONE_WIDTH) {
       const panel = Math.round(m.getContainer().clientHeight * PHONE_PANEL_SHARE);
-      const padding = { top: 0, left: 0, right: 0, bottom: selected !== null || sheetOpen ? panel : 0 };
+      const padding = { top: 0, left: 0, right: 0, bottom: selected !== null && zoneCardOpen ? panel : 0 };
       if (selected === null) m.fitBounds(SF_BOUNDS, { padding: { ...padding, top: 24, left: 24, right: 24 } });
       else m.easeTo({ center: world.zones[selected].data.center, zoom: 12.5, padding });
     }
-    // Only when the selection or sheet changes, not when the product does.
-  }, [ready, selected, sheetOpen]);
+    // Only when the selection changes, not when the product does.
+  }, [ready, selected, zoneCardOpen]);
+
+  /** Back to the starting view: all of San Francisco. */
+  const goHome = () => {
+    const m = map.current;
+    if (!m) return;
+    const phonePanel =
+      window.innerWidth <= PHONE_WIDTH && selected !== null && zoneCardOpen
+        ? Math.round(m.getContainer().clientHeight * PHONE_PANEL_SHARE)
+        : 0;
+    m.fitBounds(SF_BOUNDS, { padding: { top: 24, left: 24, right: 24, bottom: 24 + phonePanel } });
+  };
 
   const hz = hover ? world.zones[hover.zone] : null;
   return (
     <div className="map-wrap">
       <div ref={container} className="map" role="region" aria-label="Map of San Francisco neighborhoods" />
+      <button
+        type="button"
+        className="float-card home-btn"
+        onClick={goHome}
+        title="Back to all of San Francisco"
+        aria-label="Back to all of San Francisco"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h5v-6h3v6h5V9.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        </svg>
+      </button>
       {hz && hover && (
         <div className="tooltip" style={{ left: hover.x, top: hover.y }} role="status">
           <strong>{hz.name}</strong>
-          <span>
-            Score <b>{hz.score}</b>/100
-          </span>
+          {describe(hz.index) && <span>{describe(hz.index)}</span>}
         </div>
       )}
     </div>

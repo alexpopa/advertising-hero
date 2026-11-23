@@ -56,8 +56,10 @@ def used_labels() -> dict[str, set[str]]:
     """Labels the game needs, and which of them are competitor labels (need brand counts)."""
     labels, comp = set(), set()
     for p in CATS["products"].values():
-        labels |= set(p["demand"]) | set(p["competitors"])
+        labels |= set(p["demand"]) | set(p.get("stockists", {})) | set(p["competitors"]) | set(p.get("decoys", []))
         comp |= set(p["competitors"])
+    for g in CATS.get("layers", []):
+        labels |= set(g["labels"])
     for ls in CATS.get("events", {}).values():
         labels |= set(ls)
     return {"all": labels, "competitors": comp}

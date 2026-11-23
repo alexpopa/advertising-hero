@@ -36,6 +36,30 @@ export const C = {
   /** A branded (chain) competitor counts this much. */
   brandedCompetitorWeight: 1.5,
 
+  /**
+   * Stockists (stores that carry you) raise potential by up to stockBoost, with half of
+   * that at stockHalf weighted stockists per 10,000 people.
+   */
+  stockBoost: 0.5,
+  stockHalf: 3,
+
+  /**
+   * Ad formats. Price multiplies the zone's ad price; fee is the flat daily campaign fee;
+   * effectiveness multiplies customers.
+   * - Out-of-home (billboards, bus shelters, posters, displays in shops and venues): effMin + effSpan x the
+   *   zone's out-of-home mix, the average of busyness and stockist percentile. Priced with the
+   *   busy-area premium (6.4).
+   * - Digital: effMin + effSpan x fit (it targets your buyers wherever they live). Priced per
+   *   person with no busy-area premium, times `price`. No spillover into neighbors.
+   */
+  formats: {
+    ooh: { price: 1, fee: 15, effMin: 0.6, effSpan: 0.9 },
+    digital: { price: 1, fee: 10, effMin: 0.4, effSpan: 0.8 },
+  },
+
+  /** A neighborhood teaches you one thing after this many days of ads there (Normal and Hard). */
+  insightDays: 7,
+
   /** Ad price for Low, $/day, for a zone of 10,000 people at average busyness, before the money scale. */
   adPriceBase: 20,
   adPriceExponent: 0.9,
@@ -45,10 +69,10 @@ export const C = {
 
   /**
    * Flat cost per day for every running campaign (creative, setup, management), on top of
-   * the ad price. Without it, blanketing the city at Low nearly matched smart play,
-   * because weak zones are cheap and lose only a few dollars each.
+   * the ad price; set per format above (out-of-home $15, digital $10). Without it,
+   * blanketing the city at Low nearly matched smart play, because weak zones are cheap and
+   * lose only a few dollars each.
    */
-  campaignFee: 15,
 
   /** Ad level multipliers: Off, Low, Medium, High. */
   levelMult: [0, 1, 2, 4] as const,

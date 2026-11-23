@@ -61,18 +61,32 @@ Accessibility: the color scale also has number labels on hover and in the panel;
 
 ## 5. Products
 
-Each product defines which kinds of places signal its audience (demand signals), which places compete with it, and its unit economics. Labels are Overture `basic_category` values (release 2026-10-21.0 taxonomy). A place matches a label if the label is its `basic_category` or appears anywhere in `taxonomy.hierarchy`.
+*Rewritten 2026-11-22 (was 6 products with demand and competitor signals only).*
 
-| Product | Demand signals (weight) | Competitors (weight) | Order value | Margin |
-|---|---|---|---|---|
-| **Cold brew subscription** | corporate_or_business_office 1.0, college_university 0.7, campus 0.5, fitness_studio 0.4, b2b_office_and_professional_service 0.6 | coffee_shop 1.0, cafe 0.7 | $24 | 45% |
-| **Protein & supplements** | gym 1.0, fitness_studio 1.0, sport_or_fitness_facility 0.8, smoothie_juice_bar 0.6, sport_court 0.4, swimming_pool 0.4, park 0.3 | sporting_goods_store 0.8, pharmacy_and_drug_store 0.4 | $45 | 35% |
-| **Premium pet food** | animal_or_pet_service 1.0, dog_park 1.0, park 0.4 | animal_and_pet_store 1.0 | $60 | 30% |
-| **Kids & baby gear** | preschool 1.0, kindergarten 1.0, elementary_school 0.8, playground 0.8, pediatric_clinic 0.7 | toys_and_games_store 1.0, department_store 0.4 | $55 | 35% |
-| **Late-night snack delivery** | bar 1.0, nightlife_venue 1.0, dance_club 0.8, music_venue 0.7, lounge 0.6, college_university 0.4 | fast_food_restaurant 0.6, convenience_store 0.6, food_truck_stand 0.4 | $22 | 40% |
-| **Clean skincare** | personal_or_beauty_service 1.0, wellness_service 0.8, fitness_studio 0.5, fashion_and_apparel_store 0.5, shopping_mall 0.4 | personal_care_and_beauty_store 1.0, pharmacy_and_drug_store 0.5 | $38 | 55% |
+20 products in 5 groups, each tagged Starter, Tricky or Expert. All of them live in `scripts/categories.json`, which is the source of truth; this section explains the shape. Labels are Overture `basic_category` values or `taxonomy.hierarchy` entries (taxonomy 2026-10-21.0). A place matches a label if the label is its `basic_category` or appears anywhere in its hierarchy.
 
-These weights are design choices, not facts. The README says so, and they live in one JSON file so they're easy to tune.
+Every product has four kinds of place:
+
+| Role | What it does | Example (protein & supplements) |
+|---|---|---|
+| **Customers** (`demand`) | Where buyers are. Sets fit, as before. | gyms, fitness studios, martial arts gyms |
+| **Stockists** (`stockists`) | Stores that carry you. Raise potential (6.12) and allow storefront ads. | sporting-goods stores, pharmacies, grocery stores |
+| **Competitors** (`competitors`) | Take sales, as before. | juice bars, health food stores |
+| **Decoys** (`decoys`) | Look relevant, do nothing. Exist so the map can mislead. | yoga studios |
+
+A label can be a stockist and a competitor at once ("carries you, but sells rivals too"): sporting-goods stores for supplements, beauty stores for skincare, pet stores for pet food, bike shops for e-bikes. Its stockist weight is higher, so it helps a little overall. Some deliberate traps: juice bars look like gym-goers but compete with protein; cafés and coffee shops look like cold brew buyers but are rivals; laundromats look like laundry customers but compete; condos look like laundry customers but have in-unit washers (decoy); vegan restaurants compete with plant-based meal kits.
+
+Each product also has `who` (the one-line audience shown on every difficulty), `hints` (1–2 labels Normal mode tells you up front) and an icon and group for the menu.
+
+| Group | Products |
+|---|---|
+| Food & drink | Cold brew subscription, Craft hard seltzer, Plant-based meal kits, Late-night snack delivery, Craft kombucha |
+| Health & fitness | Protein & supplements, Running shoes, Sleep & calm gummies, Contact lens subscription |
+| Beauty & style | Clean skincare, Men's grooming kit, Sustainable fashion label |
+| Pets & family | Premium pet food, Kids & baby gear, Tutoring app for teens |
+| Home & going out | Houseplant delivery, Laundry pickup, E-bike rental, Event ticket app, City tours for visitors |
+
+Seven products have no stockists (delivery and app products), so storefront ads are never possible for them. These weights are design choices, not facts. The README says so, and they live in one JSON file so they're easy to tune.
 
 ## 6. Scoring model
 
@@ -200,6 +214,41 @@ Result (median of 5 seeds; ranges across the 6 products):
 - "Medium in the top 10 by score" is close to perfect: the score colors nearly give the answer away. This matters for the open question of whether Hard mode shows them.
 - Late-night ad prices are low ($5–13/day Low) because bars are concentrated in a few zones.
 
+### 6.12 Stockists and ad channels (2026-11-22, reworked 2026-11-23)
+
+*Naming:* the channels use advertising terms. **Out-of-home** (OOH) is the industry name for billboards, bus shelters and posters; it was called "Local" for a day, renamed because in advertising "local" usually means local TV. **Digital** was called "Online".
+
+**Stockists.** `S` = weighted stockist count per 10,000 people. Potential gets `× (1 + 0.5 · S / (S + 3))`: up to +50%, half of that at 3 weighted stockists per 10k people.
+
+**Ad channels.** Each neighborhood has two checkboxes, Out-of-home and Digital, plus one level (Low / Medium / High) that applies to whichever are ticked. Neither ticked = no ads.
+
+| Channel | Low price per day | Fee/day | Effectiveness (multiplies customers) | Spillover |
+|---|---|---|---|---|
+| Out-of-home (billboards, bus shelters, posters, displays in shops and venues) | the zone's ad price (6.5), with the busy-area premium | $15 | 0.6 + 0.9 × average of busyness and stockist percentile (stockists left out for products not sold in stores) | yes |
+| Digital | same base price, no busy-area premium | $10 | 0.4 + 0.8 × fit | no (targeted) |
+
+Each channel has its own awareness (pressure) track, building and fading as in 6.5. Customers = potential × `eL·rL + eO·rO − ½·min(eL, eO)·rL·rO`: each channel reaches its own people, and the overlap (people who see both) is counted once. Adding a channel never lowers customers (a test checks every zone, product and level). Cost of both = the sum of each. The awareness meter shows `1 − (1 − rL)(1 − rO)`.
+
+So: busy downtown and areas full of stores that sell you favor out-of-home ads; quiet residential neighborhoods full of your buyers favor digital (no downtown premium, follows the fit); the best neighborhoods are often worth both. Across all 20 products, the best choice in profitable neighborhoods splits roughly both ~106, out-of-home ~85, digital ~54, and 18 of 20 products use all three.
+
+**How we got here (2026-11-22 to 11-23).** Versions tried, in order:
+1. Three formats (bus stops, storefronts, online) and a schedule per campaign (every day / Mon–Fri / Fri–Sun) driven by a weekly rhythm per neighborhood. It balanced only after several tries (fee per running day made Fri–Sun win everywhere; skipping days made "every day" win everywhere).
+2. Four formats (street, venues, storefronts, online). Very sensitive to tuning: one setting gave venues 75% of neighborhoods, another gave street 50%.
+3. Too complicated in play: every neighborhood was three decisions. Cut to Local or Online, pick one, no schedules, no weekly rhythm.
+4. Online was then a weaker, cheaper copy of Local and never the best choice, so it had no reason to exist. Fixed by giving it a different job (follows the fit, no busy-area premium, no spillover) and making the two channels checkboxes that stack.
+
+Tuning for (4): digital at 0.8× price won ~42% of neighborhoods alone and out-of-home alone only ~13%; at 1× price the three-way split above.
+
+Balance (median of 5 seeds, all 20 products): perfect play $37k–44k; Easy's top suggestion daily $30k–38k; Medium out-of-home ads in the top 10 by score $21k–35k; Low or High everywhere, out-of-home or digital, bankrupt within a week.
+
+### 6.13 What the player knows (difficulty, 2026-11-22)
+
+- **Easy:** every place type's role is listed ("What you know" tab), the fit-score map layer, suggestions, and each neighborhood's score and estimates.
+- **Normal:** the audience line plus the product's `hints`. A neighborhood's score and estimates unlock after 7 days of ads there.
+- **Hard:** the audience line only; never any estimates, only real results. (Previously Hard still showed every neighborhood's score on click, which gave the answer away; see STATUS open questions.)
+
+On Normal and Hard, the 7th day of ads in a neighborhood teaches one thing: the unknown place type with the most influence there (customer weight × density percentile; stockist or competitor weight × presence, saturating at 3 places; decoys at 0.2, so they come last and are revealed as "don't seem to matter"). A toast and the "What you know" tab say what it means, in plain English. Explanations in the zone panel only name place types the player knows, plus a count of how many more could matter.
+
 ## 7. Data pipeline (in the repo)
 
 ```
@@ -254,3 +303,35 @@ Trade-off: names are approximate (nearest-point boundaries, not official ones), 
 **Duplicates and junk → minor.** 77.5k places in the box → 64k after: inside SF, confidence ≥ 0.5, not closed (3.8k were permanently closed), and same-name-within-30 m dedupe (142 removed).
 
 **Output size:** 220 KB total in `public/data/` (target < 3 MB).
+
+## 11. Improvements and future builds
+
+### 11.1 Show more of the Overture data on the map (noted 2026-11-22)
+
+*Partly done 2026-11-22: the picker now lists ~110 place types in 12 theme groups (all product signals plus extra place types for context and decoys), defined in `scripts/categories.json` under `layers`. The rest of this section is the original note.*
+
+The "Color the map" picker lists **38 place types**. That isn't everything Overture has: it's the set `scripts/categories.json` needs for scoring (each product's demand and competitor signals), which `build_zones.py` keeps and nothing else. The picker was built on the same list. Counted from the raw SF download (`data/raw/places.parquet`, release 2026-11-18.0):
+
+| | In Overture's SF slice | In the game today |
+|---|---|---|
+| Places | ~77,500 | ~64,000 inside the 76 neighborhoods, after confidence / closed / duplicate filters (section 10) |
+| `basic_category` values | **260** | **38** labels (some match through `hierarchy`, not `basic_category`) |
+| Distinct categories at any hierarchy level | ~1,560 | n/a |
+| Buildings | ~160,000 (96% with height) | Used for the people estimate (floor area); not a map option |
+| Transit stops | ~7,700 | Used in Busyness (6.3); not a map option |
+
+Places by Overture's top-level group: services & business 31.5k, food & drink 9.4k, health care 8.1k, shopping 7.2k, lifestyle services 3.5k, community & government 2.9k, travel & transportation 2.8k, sports & recreation 2.6k, arts & entertainment 2.5k, education 2.1k, cultural & historic 1.8k, lodging 1.0k, no category 1.9k.
+
+Big categories players can't map today: restaurants (5,400, the largest in SF), financial services (4,300), professional services, real estate, home services, health care (1,700), law firms, beauty-adjacent clinics, dental clinics (770), art galleries (670), places of worship (650), banks (510), hotels (490), flower and gift shops (480), hardware stores (900).
+
+**Why it matters.** On Hard, the point is to work out where customers are from what's around. Hotels and restaurants say a lot about late-night snacks, clinics about skincare, universities and offices about cold brew. A list of only the scoring signals also gives away which categories the game counts, a small hint Hard mode doesn't need.
+
+**Plan.**
+1. **No pipeline change:** add "People per km²" (from building floor area) and "Transit stops per km²" as map options. Both are already in `zones.json`.
+2. **Pipeline change:** in `build_zones.py`, count every `basic_category` per zone (not just the used labels) into a separate `n` map, or a separate file loaded only when the picker opens. Keep `examples.json` to the scoring labels: it's already 141 KB for 38 labels and would pass 1 MB for all of them.
+3. **Picker:** 260 rows is too many for a flat list. Group by Overture's top-level category (the first `hierarchy` entry) with collapsed sections, keep search, and put a short "popular" set at the top. Hide categories with very few SF places (< ~20), which only show noise.
+4. **Names:** `src/sim/labels.ts` has hand-written names for the 38 labels; the rest would fall back to the category id with underscores replaced. Write names for the most common ~60 and accept the fallback for the long tail.
+
+**Cost.** Counts are sparse (most zones have 0 of most categories); an estimated +50–100 KB to the map data, against a 220 KB total today and a 3 MB budget. Needs a re-run of `build_zones.py`; the raw download is already on disk, so no new Overture download.
+
+**Open choices.** All 260, or a curated ~80? Deeper `hierarchy` levels (e.g. "Thai restaurant" under "restaurant") would mean ~1,560 options. Probably not worth it in a game; search could still match them by rolling each up to its `basic_category`.

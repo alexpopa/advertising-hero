@@ -14,10 +14,12 @@ import {
   initGame,
   recommend,
   step,
+  FORMAT_NAMES,
   type Action,
   type CategoriesData,
   type GameState,
-  type Level,
+
+  type Plan,
   type World,
   type ZoneData,
 } from "../src/sim/index";
@@ -27,32 +29,32 @@ const zones = (JSON.parse(readFileSync(new URL("public/data/zones.json", root), 
 const cats = JSON.parse(readFileSync(new URL("scripts/categories.json", root), "utf8")) as CategoriesData;
 
 const usd = (n: number) => (n < 0 ? "-" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
-const bestLevel = (z: World["zones"][number]) => {
-  const m = Math.max(...z.steadyProfit);
-  return (m > 0 ? z.steadyProfit.indexOf(m) : 0) as Level;
-};
+type Strategy = (w: World, s: GameState) => Action[];
+const apply = (zone: number, p: Plan): Action[] => [
+  { type: "setFormat", zone, format: p.format },
+  { type: "setLevel", zone, level: p.level },
+];
+const setEach = (w: World, f: (z: World["zones"][number]) => Plan): Action[] => w.zones.flatMap((z) => apply(z.index, f(z)));
+const everywhere = (p: Plan): Strategy => (w, s) => (s.day === 0 ? setEach(w, () => p) : []);
 
-type Plan = (w: World, s: GameState) => Action[];
-const setEach = (w: World, f: (z: World["zones"][number]) => Level): Action[] =>
-  w.zones.map((z) => ({ type: "setLevel", zone: z.index, level: f(z) }));
-
-const plans: Record<string, Plan> = {
+const plans: Record<string, Strategy> = {
   "Do nothing": () => [],
-  "Low everywhere": (w, s) => (s.day === 0 ? setEach(w, () => 1) : []),
-  "High everywhere": (w, s) => (s.day === 0 ? setEach(w, () => 3) : []),
-  "Medium in top-10 by score": (w, s) => {
+  "Low out-of-home everywhere": everywhere({ level: 1, format: "ooh" }),
+  "Low digital everywhere": everywhere({ level: 1, format: "digital" }),
+  "High out-of-home everywhere": everywhere({ level: 3, format: "ooh" }),
+  "Medium out-of-home, top-10 by score": (w, s) => {
     if (s.day > 0) return [];
     const top = new Set([...w.zones].sort((a, b) => b.score - a.score).slice(0, 10).map((z) => z.index));
-    return setEach(w, (z) => (top.has(z.index) ? 2 : 0));
+    return setEach(w, (z) => ({ level: top.has(z.index) ? 2 : 0, format: "ooh" }));
   },
-  "Perfect plan from day 1": (w, s) => (s.day === 0 ? setEach(w, bestLevel) : []),
+  "Perfect plan from day 1": (w, s) => (s.day === 0 ? setEach(w, (z) => z.best) : []),
   "Easy mode: take top suggestion daily": (w, s) => {
     const r = recommend(w, s, 1)[0];
-    return r ? [{ type: "setLevel", zone: r.zone, level: r.to }] : [];
+    return r ? apply(r.zone, r.to) : [];
   },
 };
 
-function play(w: World, plan: Plan, seed: number): GameState {
+function play(w: World, plan: Strategy, seed: number): GameState {
   let s = initGame(w, seed);
   while (s.status === "playing") s = step(w, s, plan(w, s));
   return s;
@@ -65,13 +67,19 @@ for (const key of Object.keys(cats.products)) {
   const p = w.product;
   console.log(`\n=== ${p.name} ($${p.orderValue} order, ${Math.round(p.margin * 100)}% margin) ===`);
   const sorted = [...w.zones].sort((a, b) => b.score - a.score);
-  const counts = [0, 1, 2, 3].map((l) => w.zones.filter((z) => bestLevel(z) === l).length);
+  const tally = (f: (z: World["zones"][number]) => string) => {
+    const m = new Map<string, number>();
+    for (const z of w.zones.filter((z) => z.best.level > 0)) m.set(f(z), (m.get(f(z)) ?? 0) + 1);
+    return [...m].map(([k, v]) => `${k} ${v}`).join(", ");
+  };
+  const counts = [0, 1, 2, 3].map((l) => w.zones.filter((z) => z.best.level === l).length);
   console.log(`Best level per zone: ${counts.map((c, l) => `${LEVEL_NAMES[l]} ${c}`).join(", ")}`);
+  console.log(`  formats: ${tally((z) => FORMAT_NAMES[z.best.format])}`);
   console.log("Top zones by score:");
   for (const z of sorted.slice(0, 5)) {
     const e = explain(w, z.index);
     console.log(
-      `  ${String(z.score).padStart(3)}  ${z.name.padEnd(26)} Low ${usd(z.price).padStart(4)}/day  best ${LEVEL_NAMES[bestLevel(z)].padEnd(6)} ${usd(Math.max(...z.steadyProfit)).padStart(5)}/day  | ${e.summary}`,
+      `  ${String(z.score).padStart(3)}  ${z.name.padEnd(26)} Low ${usd(z.price).padStart(4)}/day  best ${`${LEVEL_NAMES[z.best.level]} ${FORMAT_NAMES[z.best.format]}`.padEnd(14)} ${usd(z.bestProfit).padStart(5)}/day  | ${e.summary}`,
     );
   }
   console.log("Bottom zones:");

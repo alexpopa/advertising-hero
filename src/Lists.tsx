@@ -1,71 +1,49 @@
+/** The lists in the in-game dropdown: suggestions (Easy), campaigns, what you know, and events. */
 import { useState } from "react";
 import {
+  C,
+  FORMAT_NAMES,
   LEVEL_NAMES,
-  adCost,
+  ROLE_TITLES,
   describeEvent,
+  labelName,
   recommend,
+  roleSentence,
+  roles,
+  unknownCount,
   zoneDayProfit,
   type GameState,
   type Level,
+  type Plan,
+  type Role,
   type World,
 } from "./sim";
 import { usd } from "./scale";
 
-type Tab = "suggestions" | "campaigns" | "events";
 type SortKey = "profit" | "cost" | "name";
 
 interface Props {
   world: World;
   state: GameState;
   onSelect: (zone: number) => void;
-  onSetLevel: (zone: number, level: Level) => void;
-  onClose?: () => void;
+  onSetPlan: (zone: number, change: Partial<Plan>) => void;
 }
 
-export function Sidebar({ world, state, onSelect, onSetLevel, onClose }: Props) {
-  const easy = state.difficulty === "easy";
-  const [tab, setTab] = useState<Tab>(easy ? "suggestions" : "campaigns");
-  const tabs: Tab[] = easy ? ["suggestions", "campaigns", "events"] : ["campaigns", "events"];
-  const running = world.zones.filter((z) => state.levels[z.index] > 0).length;
-
-  return (
-    <aside className="sidebar" aria-label="Your business">
-      <div className="tabs" role="tablist">
-        {tabs.map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
-            {t === "suggestions" ? "Suggestions" : t === "campaigns" ? `Campaigns (${running})` : "Events"}
-          </button>
-        ))}
-        {onClose && (
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
-            ×
-          </button>
-        )}
-      </div>
-      <div className="tab-body">
-        {tab === "suggestions" && <Suggestions world={world} state={state} onSelect={onSelect} onSetLevel={onSetLevel} />}
-        {tab === "campaigns" && <Campaigns world={world} state={state} onSelect={onSelect} onSetLevel={onSetLevel} />}
-        {tab === "events" && <Events world={world} state={state} onSelect={onSelect} />}
-      </div>
-    </aside>
-  );
-}
-
-function Suggestions({ world, state, onSelect, onSetLevel }: Omit<Props, "onClose">) {
+export function Suggestions({ world, state, onSelect, onSetPlan }: Props) {
   const recs = recommend(world, state);
   if (!recs.length) return <p className="muted">Nothing to change right now: your campaigns are where they should be.</p>;
   return (
     <ol className="recs">
       {recs.map((r) => (
-        <li key={`${r.zone}-${r.to}`}>
+        <li key={`${r.zone}-${r.to.level}-${r.to.format}`}>
           <button className="link" onClick={() => onSelect(r.zone)}>
             {r.title}
           </button>
           <div className="muted small">{r.reason}</div>
           <div className="rec-foot">
             <span className="pos small">+{usd(r.deltaProfit)}/day once built up</span>
-            <button className="btn btn-small" disabled={state.status !== "playing"} onClick={() => onSetLevel(r.zone, r.to)}>
-              {r.to < r.from ? "Cut" : "Buy"} · {r.to === 0 ? "$0" : usd(adCost(world, state, r.zone, r.to))}/day
+            <button className="btn btn-small" disabled={state.status !== "playing"} onClick={() => onSetPlan(r.zone, r.to)}>
+              {r.cut ? "Cut" : r.from.level === 0 ? "Buy" : "Change"} · {r.to.level === 0 ? "$0" : usd(r.costPerDay)}/day
             </button>
           </div>
         </li>
@@ -74,7 +52,7 @@ function Suggestions({ world, state, onSelect, onSetLevel }: Omit<Props, "onClos
   );
 }
 
-function Campaigns({ world, state, onSelect, onSetLevel }: Omit<Props, "onClose">) {
+export function Campaigns({ world, state, onSelect, onSetPlan }: Props) {
   const [sort, setSort] = useState<SortKey>("profit");
   // Include zones whose ads have stopped but are still fading out and bringing customers.
   const rows = world.zones
@@ -122,13 +100,16 @@ function Campaigns({ world, state, onSelect, onSetLevel }: Omit<Props, "onClose"
                 <button className="link" onClick={() => onSelect(r.z.index)}>
                   {r.z.name}
                 </button>
+                <div className="muted small">
+                  {FORMAT_NAMES[state.formats[r.z.index]]} ads
+                </div>
               </th>
               <td>
                 <select
                   aria-label={`Ad level in ${r.z.name}`}
                   value={r.level}
                   disabled={state.status !== "playing"}
-                  onChange={(e) => onSetLevel(r.z.index, Number(e.target.value) as Level)}
+                  onChange={(e) => onSetPlan(r.z.index, { level: Number(e.target.value) as Level })}
                 >
                   {LEVEL_NAMES.map((n, l) => (
                     <option key={n} value={l}>
@@ -165,7 +146,60 @@ function Campaigns({ world, state, onSelect, onSetLevel }: Omit<Props, "onClose"
   );
 }
 
-function Events({ world, state, onSelect }: Pick<Props, "world" | "state" | "onSelect">) {
+const ROLE_ORDER: Role[] = ["customers", "stockist", "both", "competitor", "decoy"];
+
+/** What the player knows about their product, and how they learned it. */
+export function Knowledge({ world, state, onSelect }: Pick<Props, "world" | "state" | "onSelect">) {
+  const role = roles(world.product);
+  const unknown = unknownCount(world, state.known);
+  const easy = state.difficulty === "easy";
+  return (
+    <div className="knowledge">
+      <p>
+        <b>Your buyers:</b> {world.product.who}.
+      </p>
+      {ROLE_ORDER.map((r) => {
+        const labels = state.known.filter((l) => role.get(l) === r);
+        if (!labels.length) return null;
+        return (
+          <section key={r}>
+            <h4>{ROLE_TITLES[r]}</h4>
+            <p className="small">{labels.map((l) => labelName(l)).join(", ")}</p>
+          </section>
+        );
+      })}
+      {unknown > 0 ? (
+        <p className="muted small">
+          {unknown} more place type{unknown === 1 ? "" : "s"} could matter for {world.product.name.toLowerCase()}. Run ads in
+          a neighborhood for {C.insightDays} days to learn the one that matters most there. Some places that look
+          relevant don't matter at all.
+        </p>
+      ) : (
+        !easy && <p className="muted small">You've worked out everything that matters.</p>
+      )}
+      {state.insights.length > 0 && (
+        <>
+          <h4>What you've learned</h4>
+          <ul className="event-log">
+            {[...state.insights].reverse().map((ins) => (
+              <li key={ins.label}>
+                <span className="muted small">
+                  Day {ins.day} ·{" "}
+                  <button className="link" onClick={() => onSelect(ins.zone)}>
+                    {world.zones[ins.zone].name}
+                  </button>
+                </span>
+                <div className="small">{roleSentence(world, ins.label)}</div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function Events({ world, state, onSelect }: Pick<Props, "world" | "state" | "onSelect">) {
   if (!state.eventLog.length) return <p className="muted">Nothing has happened yet. Events come every week or two.</p>;
   return (
     <ul className="event-log">

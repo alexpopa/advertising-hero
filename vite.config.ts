@@ -7,7 +7,8 @@ export default defineConfig({
   // pre-bundling moves the library and breaks that path, so serve it as-is.
   optimizeDeps: { exclude: ["maplibre-gl"] },
   // Fixed ports so this never takes another local project's port (5173 is a common default).
-  server: { port: 5174, strictPort: true },
+  // ".ts.net" lets the dev server be opened through a Tailscale Serve link.
+  server: { host: "127.0.0.1", port: 5174, strictPort: true, allowedHosts: [".ts.net"] },
   preview: { port: 4174, strictPort: true },
   test: {
     include: ["src/**/*.test.ts"],

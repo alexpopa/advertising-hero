@@ -1,6 +1,8 @@
+/** The results card shown over the map when a run ends. */
 import { CashChart } from "./CashChart";
 import { C, zoneTotalProfit, type GameState, type World } from "./sim";
 import { usd } from "./scale";
+import { DIFFICULTIES } from "./Menu";
 
 interface Props {
   world: World;
@@ -22,10 +24,10 @@ export function EndScreen({ world, brand, state, onPlayAgain, onViewMap }: Props
   const worst = used.length > 3 ? used.slice(-3).reverse().filter((r) => r.profit < 0) : [];
 
   return (
-    <div className="end">
-      <div className="end-inner">
+    <div className="menu-layer">
+      <div className="float-card end-card" role="dialog" aria-label="Results">
         <p className="muted">
-          {world.product.name} · {state.difficulty === "easy" ? "Easy" : "Hard"}
+          {world.product.name} · {DIFFICULTIES.find((d) => d.key === state.difficulty)?.name}
         </p>
         <h1>{bankrupt ? `${brand} went bankrupt on day ${state.day}` : `${brand} after ${C.days} days`}</h1>
         <div className="stats">
@@ -77,7 +79,7 @@ export function EndScreen({ world, brand, state, onPlayAgain, onViewMap }: Props
           <p className="muted">
             {used.length < 4
               ? `Tip: running the business costs ${usd(C.fixedOverhead)}/day even with no ads, so one or two campaigns can't cover it. Aim for five or six strong neighborhoods, added a few at a time as cash allows.`
-              : `Tip: every campaign costs a ${usd(C.campaignFee)}/day fee on top of the ads, so weak neighborhoods lose money. Check the campaigns list and cut anything that's still red after a week.`}
+              : `Tip: every campaign costs a ${usd(C.formats.ooh.fee)}/day fee (${usd(C.formats.digital.fee)} digital) on top of the ads, so weak neighborhoods lose money. Check the campaigns list and cut anything that's still red after a week.`}
           </p>
         )}
         <div className="row">
