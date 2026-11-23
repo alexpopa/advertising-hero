@@ -323,7 +323,7 @@ Playtest: following every Easy suggestion still lost ~$1,000/day at day 12, and 
 - Effect (`npm run report`, 20 products): a bot that stays alone on Low digital makes a median $820/day in month 1 (was $61); the growth bots end ~15–20% richer and no longer go bankrupt in any run (5 before). Out-of-home keeps its own advantages: spillover into neighbors, strength in busy areas and near stockists, and awareness that lingers after you stop.
 - **Easy: ↗ in the top bar** next to yesterday's profit while any campaign is below 95% of its full-strength reach, showing profit per day once everything has built up (after running costs). The launch tray's expected profit now also subtracts running costs, so the two numbers agree.
 
-Open: month 1 is now much gentler than the "first month is a squeeze" intent of 6.1/6.14. Check on Hard by hand whether it's now too easy.
+Month 1 is now much gentler than the "first month is a squeeze" intent of 6.1/6.14. Kept on purpose: playtesting preferred the easier start.
 
 ## 7. Data pipeline (in the repo)
 

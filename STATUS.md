@@ -43,7 +43,6 @@ Build order from DESIGN.md section 9:
 - Nothing private goes in render.yaml, the site, or commit messages (see CLAUDE.local.md).
 
 ## Open questions
-- Month 1 is much gentler since digital builds fast (2026-11-23, DESIGN.md 6.17). Check on Hard by hand that it isn't too easy now.
 - Late game: once all six hires are made (around day 120 for a bot), shops are the remaining money sink (2026-11-23: priced by place, up to 3 per neighborhood). Check by hand whether that's enough.
 - High is rarely worth it, so lead buyers often lose money (shown on Easy). Intended as a judgment call; check it doesn't just feel like a trap.
 - The map picker now has ~110 place types (2026-11-22), still not all 260 of Overture's SF categories (banks, law firms, places of worship… are left out). Quick win without touching the pipeline: People per km² and Transit stops per km² as map options (DESIGN.md 11.1).
