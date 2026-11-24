@@ -1,7 +1,7 @@
 /**
  * The menu: a small card floating over the map. Home offers Continue (when a run is saved
- * in this browser) and New game. New game asks one thing per step: product, brand name,
- * difficulty.
+ * in this browser) and New game. New game is two cards: brand name and product,
+ * then the loan and difficulty.
  */
 import { useMemo, useState } from "react";
 import { C, type CategoriesData, type Difficulty, type Tier } from "./sim";
@@ -123,12 +123,34 @@ export function Menu({ categories, saved, wins, startNew, onStart, onContinue }:
           >
             <div className="story-lede">
               <h2>Today, you quit your job.</h2>
-              <p>No more someone else's dream. You're going all in on your own brand. What will you sell?</p>
+              <p>No more someone else's dream. You're going all in on your own brand.</p>
             </div>
+            <div className="story-field">
+              <label className="story-label" htmlFor="brand-name">
+                Name your brand
+              </label>
+              <div className="name-line">
+                <span className="name-icon" aria-hidden>
+                  {chosen?.icon ?? "🏷️"}
+                </span>
+                <input
+                  id="brand-name"
+                  value={brand}
+                  maxLength={32}
+                  autoComplete="off"
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setBrand(e.target.value)}
+                />
+                <button className="icon-btn" onClick={() => setBrand(randomBrand())} type="button" aria-label="Random name" title="Random name">
+                  🎲
+                </button>
+              </div>
+            </div>
+            <h3 className="story-label">What will you sell?</h3>
             <div className="product-groups">
               {groups.map(([group, keys]) => (
                 <section key={group} aria-label={group}>
-                  <h3 className="product-group">{group}</h3>
+                  <h4 className="product-group">{group}</h4>
                   <div className="product-grid">
                     {keys.map((key) => {
                       const p = categories.products[key];
@@ -165,16 +187,7 @@ export function Menu({ categories, saved, wins, startNew, onStart, onContinue }:
               ))}
             </div>
             <footer className="story-foot">
-              <label className="name-line">
-                <span className="name-icon" aria-hidden>
-                  {chosen?.icon ?? "🏷️"}
-                </span>
-                <input aria-label="Brand name" value={brand} maxLength={32} onChange={(e) => setBrand(e.target.value)} />
-                <button className="icon-btn" onClick={() => setBrand(randomBrand())} type="button" aria-label="Random name" title="Random name">
-                  🎲
-                </button>
-              </label>
-              <button className="btn btn-primary" type="submit" disabled={!ready}>
+              <button className="btn btn-primary btn-big" type="submit" disabled={!ready}>
                 Next
               </button>
             </footer>
