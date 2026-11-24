@@ -42,15 +42,9 @@ One release of [Overture Maps](https://overturemaps.org/): about 64,000 places, 
 
 ## Trade-offs and cuts
 
-Most of these came from playing it and not having fun.
-
 - **Less data than the map has.** 103 of about 260 place types. With everything in, finding your buyers was a search problem, not a game.
 - **Only San Francisco.** One city let me balance the game properly. The scripts could be adapted to another city, but its neighborhood names, parks and balance would need work.
-- **Random events: cut.** Street fairs and rival campaigns landed where I had no ads and were over before ads could react. Noise, not decisions.
-- **Monthly goals: cut.** Arbitrary numbers that didn't connect to anything on the map. Replaced by one bank loan, which explains the starting cash, the deadline and how you win.
 - **Four ad formats: now two.** They balanced, but every neighborhood became three decisions. Now each channel has a clear job.
-- **Three difficulties: now two.** The hardest was guessing, not working it out.
-- **A wall of instructions: now three steps you do.** Pick a neighborhood, set an ad, launch.
 - **Neighborhood borders are approximate.** Overture outlines few of SF's neighborhoods, so they're built from hexagons around its neighborhood names.
 
 Next: more cities, and people and transit as map colors. More on every decision, with the numbers: [DESIGN.md](DESIGN.md).
