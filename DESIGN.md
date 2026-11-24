@@ -433,3 +433,37 @@ Big categories players can't map today: restaurants (5,400, the largest in SF), 
 **Cost.** Counts are sparse (most zones have 0 of most categories); an estimated +50–100 KB to the map data, against a 220 KB total today and a 3 MB budget. Needs a re-run of `build_zones.py`; the raw download is already on disk, so no new Overture download.
 
 **Open choices.** All 260, or a curated ~80? Deeper `hierarchy` levels (e.g. "Thai restaurant" under "restaurant") would mean ~1,560 options. Probably not worth it in a game; search could still match them by rolling each up to its `basic_category`.
+
+## 12. Every design choice and cut (moved from the README, 2026-11-24)
+
+- **Neighborhood names are approximate.** Boundaries follow the nearest named point, not official lines, so a few areas are bigger or smaller than locals would draw them.
+- **Treasure Island isn't in the game.** Overture has no neighborhood name anywhere near it.
+- **Money needed a reason.** Early versions were a puzzle you solved in the first few weeks: once your good neighborhoods were running, extra cash had nothing to buy. Now you start alone with cheap digital ads, and profit pays for buyers who unlock stronger ads, and for shops of your own. I tried monthly profit goals (a star and a bonus each month) to set the pace and cut them: they were arbitrary numbers that didn't connect to any decision on the map. Saving up for the next hire or shop is the goal.
+- **One way to win: pay back the bank.** Making money had no finish line. I looked at how other tycoon games end (scenario targets with a deadline, star ratings, market share) and first considered "half of San Francisco knows your brand". I dropped it because it would reward advertising everywhere, which the rest of the game teaches you not to do. A loan does the opposite: $500,000 by day 180 explains the starting cash, the deadline and why the game ends, and it rewards exactly the skill the game is about. To tune it, I added a "realistic player" bot (finds good neighborhoods gradually, wastes money early, decides on hires only weekly) next to the perfect one, and raised sales in every neighborhood by 20% rather than lowering the target. Now a perfect run pays off around day 116, a realistic one wins a bit under half the time, and a player who never hires anyone can't win. The score is only the day you paid; nothing else counts.
+- **Shops are a bet on a place, not a power-up.** A shop in the right neighborhood pays for itself in a couple of months; in most neighborhoods it never does, and a second or third shop in the same place usually loses money because it pays full rent for half the extra sales. That makes "where do I open?" a real question instead of "always buy the shop".
+- **Numbers sized like a real small business.** $50,000 to start, buyers on roughly $75k–130k a year, storefronts at $3k–9k a month. Overture has no sales or rent data, so these are invented, but at this scale they read as plausible; earlier the same economy at a tenth of the size ($25/day salaries) felt like a toy.
+- **Ads build up like real ones, at two speeds.** Costs start the day you buy; sales build as people see the ads again and again (what marketers call adstock or carryover). Billboards and posters build over about a month and linger; targeted digital ads work within days and stop soon after you do. So doubling a campaign means a short dip before the extra sales arrive. Easy mode shows a ↗ with the profit you're heading for while ads are still building.
+- **Hiring stays simple.** A hire does one thing: it unlocks the next ad level in one channel. No skills, morale or firing. Hires are permanent, so each one is a real bet. Shops are one-off bets on a single neighborhood, with no stock or staff to manage.
+- **Two difficulties, not three.** A third level that told you almost nothing was mostly guessing, not deduction. Hard (the default) gives you a starting clue and lets you learn the rest by advertising; Easy shows everything.
+- **The neighborhood card stays short.** Your ads and the shop you're saving for are always visible; everything you've learned about the area folds away behind one click. Buy buttons fill up as you save towards them.
+- **Difficulty changes what you know, not the numbers.** The economy is the same on every level. Harder levels hide which places matter, and you find out by advertising. That keeps the map honest: every clue is real Overture data.
+- **Some places are red herrings on purpose.** Juice bars look like protein buyers but compete with you; condos look like laundry customers but have washers. Which place does what is a design choice for each product, kept in one file (`scripts/categories.json`), not a claim about the real world.
+- **No random events for now.** Street fairs, rival campaigns and price spikes landed in random neighborhoods, usually ones you weren't advertising in, and were over before slow-building ads could react. They added noise, not decisions, so they're out until they can be made to matter.
+- **Two ad channels, each with its own level and its own job.** Earlier versions had up to four formats plus a weekly schedule per campaign; they balanced, but every neighborhood became three decisions. Then a cut-down version made one channel a cheaper copy of the other that never won, which was pointless. Now out-of-home (the industry term for billboards and posters) follows foot traffic and stores, digital follows your buyers with no downtown premium, and the best neighborhoods are worth both, often at different levels.
+- **One city.** San Francisco keeps the data small and lets the balance be tuned against one map.
+- **No accounts or leaderboards.** Progress is saved in your browser, so there's no server to run.
+- **The map shows 103 of Overture's 260 place categories:** everything the products use, plus related places that give context (or mislead). Banks, law firms, places of worship and the long tail are left out to keep the picker short.
+- **The data is precomputed,** not queried live: a one-time script turns millions of map records into a few small files.
+- **The first minute is done, not read (2026-11-24).** The first screen of play was a six-point how-to card. Now a small guide names your buyers and ticks off three steps as you do them (pick a neighborhood, set Digital to Low, launch). On Hard your starting clues are buttons that color the map. The full how-to is one click away (`?`, or the brand menu).
+- **The game survives a missing basemap.** If the background map can't be reached, the neighborhoods draw on a plain background and everything still works. A browser without WebGL 2 gets a card saying so instead of a blank page.
+
+### How neighborhoods are made
+
+Overture names about 90 San Francisco neighborhoods but only draws outlines for about 16 of them, so the game builds its own:
+
+1. Cover the city's land with ~0.74 km² hexagons ([H3](https://h3geo.org/)), clipped to the coastline.
+2. Name each hexagon after the nearest Overture neighborhood point, or after a big park (Presidio, Golden Gate Park, Lake Merced, McLaren) if it's mostly park.
+3. Drop nearly empty hexagons and ones too far from any named neighborhood.
+4. Merge hexagons with the same name.
+
+The result is **76 neighborhoods** in about 220 KB of data, small enough to ship straight to the browser.

@@ -3,9 +3,10 @@
  * the brand, day, cash and the clock. Clicking the brand opens a dropdown with campaigns
  * and what you know (and suggestions on Easy). What the map shows lives in its own button
  * (LayersPanel.tsx). Toasts, the low-cash warning and the
- * first-run hints come and go on their own.
+ * guided first minute (Coach.tsx) come and go on their own.
  */
 import { useEffect, useRef, useState } from "react";
+import { Coach } from "./Coach";
 import { Campaigns, Knowledge, Suggestions, Team } from "./Lists";
 import {
   C,
@@ -17,7 +18,6 @@ import {
   adCost,
   estimateFor,
   isOn,
-  labelName,
   hiredOf,
   nextHire,
   shopCost,
@@ -73,6 +73,9 @@ interface Props {
   /** Is the neighborhood card open? (On phones it covers the plan tray.) */
   zoneOpen?: boolean;
   onHire: (channel: Channel) => void;
+  /** Place types coloring the map, and how to change them (the coach's clues). */
+  shownPlaces: string[];
+  onShowPlaces: (labels: string[]) => void;
 }
 
 export function GameHud({
@@ -88,12 +91,27 @@ export function GameHud({
   onPops,
   zoneOpen,
   onHire,
+  shownPlaces,
+  onShowPlaces,
 }: Props) {
   const [running, setRunning] = useState(false);
   const [speedIx, setSpeedIx] = useState(0);
   const [tab, setTab] = useState<Tab | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [showHints, setShowHints] = useState(() => !hintsSeen() && state.day === 0);
+  /** The full how-to, opened from the coach or the brand menu. */
+  const [showHints, setShowHints] = useState(false);
+  /** The guided first minute: until the first launch, once per browser. */
+  const [coach, setCoach] = useState(() => !hintsSeen() && state.day === 0);
+  const endCoach = () => {
+    setCoach(false);
+    markHintsSeen();
+  };
+  const openHelp = () => {
+    setRunning(false);
+    setTab(null);
+    setTeamOpen(false);
+    setShowHints(true);
+  };
   const playing = state.status === "playing";
   const easy = state.difficulty === "easy";
   const speed = SPEEDS[speedIx];
@@ -103,6 +121,11 @@ export function GameHud({
   const hud = useRef<HTMLDivElement>(null);
   useExclusivePanel("menu", tab !== null, () => setTab(null));
   useExclusivePanel("team", teamOpen, () => setTeamOpen(false));
+
+  // The clock starting ends the guided first minute.
+  useEffect(() => {
+    if (coach && running) endCoach();
+  }, [coach, running]);
 
   // The clock.
   useEffect(() => {
@@ -122,6 +145,7 @@ export function GameHud({
       if (e.key === "Escape") {
         setTab(null);
         setTeamOpen(false);
+        setShowHints(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -187,7 +211,8 @@ export function GameHud({
   const yesterday = state.history[state.history.length - 1];
   const target = easy && playing ? buildingTarget(world, state) : null;
   const campaignCount = state.plans.filter(isOn).length;
-  const waitingToStart = playing && state.day === 0 && !running;
+  // While coaching, ▶ only calls for attention once there are ads to launch.
+  const waitingToStart = playing && state.day === 0 && !running && (!coach || campaignCount > 0);
 
   return (
     <>
@@ -292,7 +317,10 @@ export function GameHud({
               >
                 Main menu
               </button>
-              <span className="muted small">Space pauses · your game saves automatically</span>
+              <button className="link" onClick={openHelp}>
+                How to play
+              </button>
+              <span className="muted small">Space pauses · autosaves</span>
             </footer>
           </div>
         )}
@@ -309,67 +337,42 @@ export function GameHud({
         onHire={onHire}
       />
 
+      {coach && playing && !paused && !showHints && (
+        <Coach
+          world={world}
+          easy={easy}
+          clues={state.known}
+          shown={shownPlaces}
+          onShow={onShowPlaces}
+          zoneOpen={!!zoneOpen}
+          planned={campaignCount}
+          onHelp={openHelp}
+          onClose={endCoach}
+        />
+      )}
+
       {showHints && (
         <div className="float-card hints" role="dialog" aria-label="How to play">
           <h2>How to play</h2>
-          <p>
-            <b>Your buyers:</b> {world.product.who}.
-            {!easy && state.known.length > 0 && (
-              <> You know that {state.known.map((l) => labelName(l)).join(" and ")} matter. The rest is up to you.</>
-            )}
-          </p>
           <ol>
             <li>
-              <b>Pay back the bank:</b> {usd(C.loan)} by day {C.days}. It's paid automatically the day your cash reaches
-              it (the green line under the top bar), and that's a win. The day you pay is your score.
+              <b>Find your buyers.</b> Some places draw them, some stores carry you, some compete, and some just look
+              relevant. {easy ? "Darker blue is a better fit; suggestions are under your brand." : "Color the map (bottom left) by any kind of place. Two weeks of ads in a neighborhood teaches you something new."}
             </li>
             <li>
-              {easy ? (
-                <>
-                  <b>Colors show where your product fits.</b> Darker blue means a better return per ad dollar.
-                </>
-              ) : (
-                <>
-                  <b>Work out where your buyers are.</b> Use <i>Color the map</i> (bottom left) to see where gyms, bars,
-                  offices or anything else are. Some places draw your buyers, some stores carry you, some compete, and
-                  some just look relevant.
-                </>
-              )}
+              <b>Buy ads there.</b> Digital follows your buyers and works in days. Out-of-home (billboards, posters)
+              works best in busy areas and near stores that carry you, and takes about a month. Every campaign has a
+              daily fee, so don't buy everywhere.
             </li>
             <li>
-              {easy ? (
-                <>
-                  <b>Start with a suggestion</b> (click your brand at the top), or click any neighborhood.
-                </>
-              ) : (
-                <>
-                  <b>Click a neighborhood to buy ads.</b> After two weeks of ads there you learn one thing about your
-                  buyers (see <i>What you know</i> under your brand).
-                </>
-              )}
+              <b>Grow.</b> Hire buyers (👥) to unlock stronger ads, or open shops. Both cost money every day, for good.
             </li>
             <li>
-              <b>Two channels, each with its own level.</b> Out-of-home ads (billboards, bus shelters, posters) work
-              best in busy areas and near the stores that sell you. Digital ads follow where your buyers are, with no
-              downtown premium. Run either or both; each reaches its own people.
-            </li>
-            <li>
-              <b>You start alone, with digital ads at Low.</b> Hire buyers (👥 top left) to unlock out-of-home ads, and
-              Medium and High in each channel. Each hire costs a signing fee and a salary, for good. A shop is a
-              permanent bet on one neighborhood: walk-ins and more sales there, plus rent.
-            </li>
-            <li>
-              <b>Press ▶ to start the clock.</b> Digital ads build up in about a week, out-of-home over a month, and every campaign has a daily fee, so
-              don't buy everywhere.
+              <b>Pay back {usd(C.loan)} by day {C.days}.</b> It's paid the day your cash reaches it. That day is your
+              score.
             </li>
           </ol>
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              setShowHints(false);
-              markHintsSeen();
-            }}
-          >
+          <button className="btn btn-primary" onClick={() => setShowHints(false)}>
             Got it
           </button>
         </div>
@@ -472,7 +475,7 @@ function PlanTray({
     <section className={"float-card plan-tray" + (zoneOpen ? " behind-panel" : "") + (covered ? " covered" : "")} aria-label="Your plan">
       {n === 0 ? (
         <span className="plan-empty muted small">
-          {fresh ? "Click neighborhoods to plan ads, then launch them together" : "No campaigns running"}
+          {fresh ? "No ads yet" : "No campaigns running"}
         </span>
       ) : (
         <ul className="plan-chips">

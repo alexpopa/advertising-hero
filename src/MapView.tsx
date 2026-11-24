@@ -119,6 +119,13 @@ interface Props {
   shops?: number[];
 }
 
+/** Used when the basemap doesn't load. */
+const PLAIN_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {},
+  layers: [{ id: "background", type: "background", paint: { "background-color": "#e8e7e3" } }],
+};
+
 interface Hover {
   x: number;
   y: number;
@@ -155,6 +162,14 @@ export function MapView({ geojson, world, selected, onSelect, levels, zoneCardOp
     );
     // No zoom buttons: scroll, pinch and double-click zoom, and the screen stays clear.
     map.current = m;
+
+    // If the basemap can't be reached, play on a plain background: the neighborhoods are ours.
+    let plain = false;
+    m.on("error", () => {
+      if (plain || m.style?.stylesheet) return;
+      plain = true;
+      m.setStyle(PLAIN_STYLE);
+    });
 
     m.on("load", () => {
       // On phones the expanded credits sit under the map button; start them collapsed

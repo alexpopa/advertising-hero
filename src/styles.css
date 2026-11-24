@@ -331,6 +331,43 @@ h3.story-label { margin: 4px 0 -6px; }
 .hints h2 { font-size: 18px; }
 .hints ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
 .hints .btn { justify-self: start; }
+.crash { width: min(400px, calc(100% - 32px)); padding: 28px 24px; display: grid; gap: 12px; justify-items: center; text-align: center; line-height: 1.45; }
+.crash h2 { font-size: 20px; color: var(--text); }
+.crash p { margin: 0; }
+.crash-icon { font-size: 40px; }
+
+/* ---------- The guided first minute ---------- */
+.coach {
+  position: absolute; z-index: 4; left: 16px; top: 82px; width: 300px; padding: 14px; display: grid; gap: 12px;
+  font-size: 14px; animation: pop-in .25s ease-out;
+}
+.coach header { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; }
+.coach-icon { font-size: 22px; line-height: 1.2; }
+.coach-who { line-height: 1.35; padding-top: 3px; }
+.coach-btns { display: flex; margin: -4px -6px 0 0; }
+.coach-clues { display: flex; flex-wrap: wrap; gap: 6px; }
+.clue { font: inherit; font-size: 13px; font-weight: 600; padding: 5px 11px; border-radius: 999px; border: 1.5px solid #f0cdb8; background: #fff8f3; color: #9c431a; cursor: pointer; }
+.clue:hover { border-color: #e5612c; }
+.clue.on { background: #e5612c; border-color: #e5612c; color: #fff; }
+.coach-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.coach-steps li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; color: var(--muted); font-weight: 600; }
+.coach-steps li > span { width: 22px; height: 22px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: var(--soft); }
+.coach-steps li.now { background: var(--accent-soft); color: var(--text); }
+.coach-steps li.now > span { background: var(--accent); color: #fff; }
+.coach-steps li.done > span { background: #1f8a4c; color: #fff; }
+/* Step 2 points at the button it names. */
+.shell:has(.coach-1) .ch-digital .levels-pick button:nth-child(2) { animation: pulse 1.6s ease-out infinite; }
+/* Panels that open over it. */
+.shell:has(.team-card) .coach, .shell:has(.map-panel) .coach { visibility: hidden; }
+@media (max-width: 720px) {
+  .coach { left: 62px; right: 8px; top: 64px; width: auto; padding: 10px 12px; gap: 8px; }
+  .shell:has(.dropdown) .coach { visibility: hidden; }
+  /* One line of steps: only the current one is spelled out. */
+  .coach-steps { display: flex; align-items: center; }
+  .coach-steps li { padding: 4px 6px; }
+  .coach-steps li:not(.now) { font-size: 0; gap: 0; }
+  .coach-steps li.now { flex: 1; white-space: nowrap; }
+}
 
 .toasts { position: absolute; z-index: 4; left: 16px; top: 16px; display: grid; gap: 8px; width: min(300px, calc(100% - 32px)); }
 .toast {

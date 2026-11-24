@@ -14,7 +14,7 @@ export interface SavedGame {
 }
 
 const GAME_KEY = "ad-empire-sf:game:v1";
-const HINTS_KEY = "ad-empire-sf:hints-seen:v1";
+const HINTS_KEY = "ad-empire-sf:hints-seen:v2";
 
 export function loadGame(): SavedGame | null {
   try {

@@ -192,6 +192,8 @@ export function App() {
             onSelect={setSelected}
             onPops={addPops}
             onHire={onHire}
+            shownPlaces={layer.kind === "places" ? layer.labels : []}
+            onShowPlaces={(labels) => setLayer(labels.length ? { kind: "places", labels } : { kind: "none" })}
             zoneOpen={selected !== null}
             paused={phase !== "play"}
             onMenu={() => {
