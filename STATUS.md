@@ -1,6 +1,6 @@
 # Status and handoff
 
-Last updated 2026-11-24. Read this first when picking the project up on another computer or in a new Claude session.
+Last updated 2026-11-24. Read this first when picking the project up.
 
 ## Decisions so far
 - Project: **Advertising Hero** (named 2026-11-23; working title was Ad Empire SF), an ad-spend tycoon game. The repo, Render service, package name and browser save keys keep `ad-empire-sf`, so links and saved games keep working. Full design and scoring model in [DESIGN.md](DESIGN.md).
@@ -8,8 +8,7 @@ Last updated 2026-11-24. Read this first when picking the project up on another 
 - Research behind the idea: [research-notes.md](research-notes.md).
 
 ## Where the work is
-Moved to a Mac mini on 2026-11-20 (the Windows desktop wasn't workable). Built-in Python 3.9 works fine with DuckDB 1.4; no new installs needed.
-Repo: private GitHub repo `alexpopa/ad-empire-sf` (push over SSH). `data/raw/` and `.venv/` are git-ignored.
+Python 3.9 works fine with DuckDB 1.4. `data/raw/` and `.venv/` are git-ignored.
 
 Build order from DESIGN.md section 9:
 1. **Data: done.** `scripts/extract.py` downloads the SF slice (~80 s), `scripts/inspect_sf.py` reports on it, `scripts/build_zones.py` writes `public/data/` (76 zones, 220 KB). Decisions in DESIGN.md section 10.
@@ -38,13 +37,10 @@ Build order from DESIGN.md section 9:
    **Naming your brand comes first (2026-11-24).** Playtest: the name field sat in the footer next to Next and didn't read as something to fill in. The first story card now asks two labeled questions in order: "Name your brand" (top, still prefilled, 🎲 for another; clicking it selects the whole name) and "What will you sell?" (the product list). The footer is just Next, full width. Product cards no longer lift or turn blue on hover (it looked like a selection); the selected card has a thicker blue outline. Trade-off: the list shows slightly less at once. Checked by scripted Chrome run, desktop + phone: picking a product and 🎲 move nothing, no sideways scroll, no errors.
 6. Polish, deploy, README.
 
-## Deploy notes (for step 6)
-- Plan: Render **static site** on the free tier (static sites don't sleep, unlike free web services). No backend.
-- **`render.yaml` added (2026-11-22)**: Render Blueprint for a free static site. Build `npm ci && npm run build`, publish `dist`, Node 24 (also pinned in `.node-version`), long cache on hashed `/assets/*`. Clean install + build checked locally. **Deployed 2026-11-22: https://ad-empire-sf.onrender.com** (build passes; page, JS/CSS and `public/data/` files all load; map rendering in a real browser not yet checked).
-- To deploy: Render dashboard → New → Blueprint → pick `alexpopa/ad-empire-sf` → Apply. Pushes to `main` redeploy automatically. The map data in `public/data/` is committed, so the build needs no Python or Overture download.
-- Render needs Alexandru's account connected to the GitHub repo `alexpopa/ad-empire-sf` (currently private; Render can read private repos once GitHub access is granted).
-- After deploy, check the map actually renders on the live URL (the MapLibre worker gotcha in "Run the app" broke production once).
-- Nothing private goes in render.yaml, the site, or commit messages (see CLAUDE.local.md).
+## Deploy notes
+- Live at https://ad-empire-sf.onrender.com: a Render static site on the free tier (no backend; static sites don't sleep). `render.yaml` holds the build (`npm ci && npm run build`, publish `dist`, Node 24, also pinned in `.node-version`; long cache on hashed `/assets/*`).
+- The map data in `public/data/` is committed, so the build needs no Python or Overture download. Pushes to the deployed repo rebuild the site.
+- After a deploy, check the map actually renders on the live URL (the MapLibre worker gotcha in "Run the app" broke production once). Last checked in Chrome 2026-11-24: new game starts, map loads, no errors.
 
 ## Open questions
 - Late game (mostly answered 2026-11-23 by the bank loan: the run now ends when it is paid, around day 116 for a perfect bot): once all six hires are made, shops are the remaining money sink in endless play (2026-11-23: priced by place, up to 3 per neighborhood). Check by hand whether that's enough.

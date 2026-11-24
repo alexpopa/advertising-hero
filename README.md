@@ -4,7 +4,7 @@
 
 Advertising Hero is a small tycoon game that runs in the browser. You borrowed $500,000 to build your product and $50,000 of it is left. You have 180 game days to pay the bank back, and the way to do it is to work out where your next ad dollar is worth the most. A gym-heavy corner of SoMa is great for protein powder and useless for baby gear. Downtown is packed with people, but its ads are priced to match. The quiet, cheap neighborhood with exactly your audience is the one worth finding.
 
-> **Status: playable, not yet deployed.** The full game runs locally: start screen, map, buying ads, the 180-day run and the end screen. Next: putting it online, then balancing and polish. See [Roadmap](#roadmap).
+**[Play it in your browser](https://ad-empire-sf.onrender.com)**: free, no account. (The address is from the game's working title, Ad Empire SF.)
 
 ## How it plays
 
@@ -69,7 +69,7 @@ Needs Node.js.
 ```bash
 npm install
 npm run dev       # the game at http://localhost:5174
-npm test          # 155 tests for the game rules
+npm test          # 173 tests for the game rules
 npm run report    # how a few simple strategies do over 180 days, per product, and when bots pay off the loan
 ```
 
@@ -96,18 +96,19 @@ python scripts/build_zones.py    # writes public/data/
 
 - [x] Data pipeline and neighborhoods
 - [x] Simulation engine with tests
-- [ ] Balance script (bots play many runs to tune the economy)
+- [x] Balance report: bots play each product to tune the economy (`npm run report`)
 - [x] Map with fit colors and a "why this neighborhood" panel
 - [x] Game loop: ad buying, campaigns, Easy-mode suggestions
 - [x] Start and end screens, hints
-- [ ] Polish and deploy
+- [x] Deployed as a static site
+- [ ] More hand playtesting and polish
 
 Later:
 - [x] 20 products with stockists, red herrings, out-of-home and digital ads, and two difficulty levels
 - [x] Growth: hire buyers to unlock ad levels, open your own shops
 - [ ] Color the map by people and transit stops per km² (plan in DESIGN.md 11.1)
 
-Planned stack: Vite, React, TypeScript, MapLibre GL, hosted as a static site.
+Built with Vite, React, TypeScript, MapLibre GL, hosted as a static site.
 
 ## Credits
 
