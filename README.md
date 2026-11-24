@@ -44,7 +44,7 @@ One release of [Overture Maps](https://overturemaps.org/): about 64,000 places, 
 
 - **Less data than the map has.** 103 of about 260 place types. With everything in, finding your buyers was a search problem, not a game.
 - **Only San Francisco.** One city let me balance the game properly. The scripts could be adapted to another city, but its neighborhood names, parks and balance would need work.
-- **Four ad formats: now two.** They balanced, but every neighborhood became three decisions. Now each channel has a clear job.
+- **Only two ad formats.** Real advertising has many more. I kept it to digital and out-of-home to keep the game simple and fun.
 - **Neighborhood borders are approximate.** Overture outlines few of SF's neighborhoods, so they're built from hexagons around its neighborhood names.
 
 Next: more cities, and people and transit as map colors. More on every decision, with the numbers: [DESIGN.md](DESIGN.md).
